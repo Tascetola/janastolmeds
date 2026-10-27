@@ -1,0 +1,35 @@
+# Oracle wallets and credentials - never commit
+Wallet_*/
+*.zip
+*.sso
+*.p12
+*.jks
+cwallet.*
+ewallet.*
+tnsnames.ora
+sqlnet.ora
+.env
+*.env
+**/secrets/
+
+# SQLcl / Liquibase
+*.log
+liquibase.properties
+
+# Flutter / Dart
+mobile/.dart_tool/
+mobile/.flutter-plugins
+mobile/.flutter-plugins-dependencies
+mobile/build/
+mobile/.pub-cache/
+mobile/android/key.properties
+mobile/android/app/google-services.json
+mobile/ios/Runner/GoogleService-Info.plist
+*.keystore
+
+# IDE and OS
+.idea/
+.vscode/
+*.iml
+.DS_Store
+Thumbs.db
