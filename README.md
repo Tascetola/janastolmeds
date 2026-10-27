@@ -17,7 +17,7 @@ All business rules live in a single PL/SQL API layer. APEX calls it inside the d
 | Layer | Technology |
 | --- | --- |
 | Database | Oracle Autonomous Database (Always Free) |
-| Business logic | PL/SQL packages |
+| Business logic | PL/SQL packages (`JM_*_API`) |
 | REST API | Oracle REST Data Services (ORDS), OAuth2 |
 | Web client | Oracle APEX 24.2, Universal Theme, PWA |
 | Mobile client | Flutter 3.x (Android and iOS) |
@@ -39,15 +39,15 @@ All business rules live in a single PL/SQL API layer. APEX calls it inside the d
 
 | ID | Document | Status |
 | --- | --- | --- |
-| MTH-DOC-01 | [Project Charter & SRS](docs/01-project-charter-srs.md) | Draft v0.1 |
-| MTH-DOC-02 | Architecture | Planned |
-| MTH-DOC-03 | Database Design (ERD, data dictionary) | Planned |
-| MTH-DOC-04 | API Specification (OpenAPI) | Planned |
-| MTH-DOC-05 | UI Wireframes | Planned |
-| MTH-DOC-06 | Coding Standards | Planned |
-| MTH-DOC-07 | Test Plan & Traceability Matrix | Planned |
-| MTH-DOC-08 | Deployment Guide | Planned |
-| MTH-DOC-09 | User Manual | Planned |
+| JM-DOC-01 | [Project Charter & SRS](docs/01-project-charter-srs.md) | Draft v0.1 |
+| JM-DOC-02 | Architecture | Planned |
+| JM-DOC-03 | [Database Design (ERD, data dictionary)](docs/03-database-design.md) | Draft v0.1 |
+| JM-DOC-04 | API Specification (OpenAPI) | Planned |
+| JM-DOC-05 | UI Wireframes | Planned |
+| JM-DOC-06 | Coding Standards | Planned |
+| JM-DOC-07 | Test Plan & Traceability Matrix | Planned |
+| JM-DOC-08 | Deployment Guide | Planned |
+| JM-DOC-09 | User Manual | Planned |
 
 ## Repository structure
 
