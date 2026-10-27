@@ -6,12 +6,12 @@ JanastolMeds is a portfolio-grade hospital management system: an Oracle APEX web
 
 ## Document control
 
-| Item           | Detail                                                                            |
-|----------------|-----------------------------------------------------------------------------------|
-| Document ID    | MTH-DOC-01                                                                        |
-| Version        | 0.1 (Draft)                                                                       |
-| Owner          | Adetola (Solution Architect / Lead Developer)                                     |
-| Next documents | MTH-DOC-02 Architecture, MTH-DOC-03 Database Design, MTH-DOC-04 API Specification |
+| Item           | Detail                                                                         |
+|----------------|--------------------------------------------------------------------------------|
+| Document ID    | JM-DOC-01                                                                      |
+| Version        | 0.1 (Draft)                                                                    |
+| Owner          | Adetola (Solution Architect / Lead Developer)                                  |
+| Next documents | JM-DOC-02 Architecture, JM-DOC-03 Database Design, JM-DOC-04 API Specification |
 
 **Revision history**
 
@@ -128,7 +128,7 @@ This SRS defines what JanastolMeds Release 1.0 must do and how well it must do i
 |------|------------------------------------------------------------------------|
 | EMR  | Electronic Medical Record — the patient's clinical history             |
 | HMO  | Health Maintenance Organisation — third-party payer under NHIA schemes |
-| MRN  | Medical Record Number — unique patient ID, format MT-YYYY-NNNNNN       |
+| MRN  | Medical Record Number — unique patient ID, format JM-YYYY-NNNNNN       |
 | ORDS | Oracle REST Data Services — exposes PL/SQL as REST endpoints           |
 | NDPA | Nigeria Data Protection Act 2023                                       |
 | RBAC | Role-based access control                                              |
@@ -156,7 +156,7 @@ JanastolMeds is a new, self-contained system. Staff use the APEX web portal on d
 | Layer          | Technology                                                    |
 |----------------|---------------------------------------------------------------|
 | Database       | Oracle Autonomous Database 19c/23ai (Always Free)             |
-| Business logic | PL/SQL packages (MT\_\*\_API)                                 |
+| Business logic | PL/SQL packages (JM\_\*\_API)                                 |
 | REST layer     | ORDS with OAuth2 (client credentials and password/token flow) |
 | Web client     | Oracle APEX 24.2, Universal Theme, PWA enabled                |
 | Mobile client  | Flutter 3.x, Dart, Android 8+ and iOS 15+                     |
@@ -263,16 +263,16 @@ Health data is sensitive personal data under the NDPA 2023, so security and priv
 | NFR-AVL-01 | Availability        | 99% during working hours (07:00–20:00 WAT); automatic daily backups via Autonomous DB.                           |
 | NFR-USB-01 | Usability           | Responsive web UI usable on 10-inch tablets; core mobile tasks done in 3 taps or fewer.                          |
 | NFR-USB-02 | Accessibility       | Should meet WCAG 2.1 AA for contrast and keyboard navigation.                                                    |
-| NFR-MNT-01 | Maintainability     | Business logic only in MT\_\*\_API packages; APEX pages call packages, not tables directly.                      |
+| NFR-MNT-01 | Maintainability     | Business logic only in JM\_\*\_API packages; APEX pages call packages, not tables directly.                      |
 | NFR-MNT-02 | Versioning          | APIs versioned as /api/v1/; breaking changes need a new version.                                                 |
 
 ### 14. System architecture and interfaces
 
-All business rules live in one PL/SQL API layer; APEX calls it directly inside the database and the mobile app reaches it only through ORDS. Full detail goes in MTH-DOC-02 Architecture.
+All business rules live in one PL/SQL API layer; APEX calls it directly inside the database and the mobile app reaches it only through ORDS. Full detail goes in JM-DOC-02 Architecture.
 
-![JanastolMeds architecture](images/architecture.png)
+![JanastolMeds architecture: 2 clients, 1 API layer](images/architecture.png)
 
-*Figure 1: JanastolMeds architecture: 2 clients, 1 API layer*
+*Figure: JanastolMeds architecture: 2 clients, 1 API layer*
 
 A rule such as "no double-booking" or "patients see only their own records" is coded once in the packages, so web and mobile can never disagree.
 
@@ -290,7 +290,7 @@ A rule such as "no double-booking" or "patients see only their own records" is c
 | GET    | /api/v1/lab-results              | Own released lab results                 | Mobile |
 | GET    | /api/v1/invoices                 | Own invoices and payments                | Mobile |
 
-All responses are JSON with standard HTTP status codes; errors return {code, message}. The full contract (OpenAPI) goes in MTH-DOC-04.
+All responses are JSON with standard HTTP status codes; errors return {code, message}. The full contract (OpenAPI) goes in JM-DOC-04.
 
 ### 15. Acceptance criteria
 
@@ -300,17 +300,17 @@ Release 1.0 is accepted when all of the following hold:
 
 - [ ] All NFR-SEC and NFR-PRV requirements pass security tests, including a check that a patient token cannot read another patient's data.
 
-- [ ] utPLSQL coverage of MT\_\*\_API packages is at least 70%.
+- [ ] utPLSQL coverage of JM\_\*\_API packages is at least 70%.
 
 - [ ] The Postman collection runs green for every /api/v1/ endpoint.
 
 - [ ] The end-to-end scenario works: patient books on mobile → checked in → vitals → consultation → lab order and result → prescription dispensed → invoice paid → patient sees result and receipt on mobile.
 
-- [ ] Documentation set MTH-DOC-01 to MTH-DOC-09 is complete in the repository.
+- [ ] Documentation set JM-DOC-01 to JM-DOC-09 is complete in the repository.
 
 ### 16. Traceability
 
-Each FR and NFR ID will be carried into the design documents, test cases (TC-module-nn) and Git commit messages. The traceability matrix lives in MTH-DOC-07 Test Plan.
+Each FR and NFR ID will be carried into the design documents, test cases (TC-module-nn) and Git commit messages. The traceability matrix lives in JM-DOC-07 Test Plan.
 
 ### 17. Sign-off
 
