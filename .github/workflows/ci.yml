@@ -1,0 +1,158 @@
+# JanastolMeds CI: the automated part of every QA gate (see "Quality assurance" in CLAUDE.md).
+#
+#   Pull request -> static checks, then read-only database checks: Liquibase validate/status/preview,
+#                   invalid objects, utPLSQL suite. Nothing is deployed from an unmerged branch.
+#   Push to main -> the same, then deploy (lb update) to the demo database and prove it is
+#                   idempotent (a second run would apply nothing), then run the tests again.
+#
+# Secrets (Settings > Secrets and variables > Actions):
+#   ADB_WALLET_BASE64  base64 of the Autonomous Database wallet zip
+#   JMEDS_PASSWORD     password of the JMEDS schema owner
+# Variable (optional): DB_SERVICE, default cibserp_high
+
+name: CI
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  static:
+    name: Static checks
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0   # full history so the secret scan covers every commit
+
+      - name: Liquibase changeset rules
+        run: bash .github/scripts/check-changesets.sh database
+
+      - name: Secret scan
+        uses: gitleaks/gitleaks-action@v3
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  database:
+    name: Database checks
+    needs: static
+    runs-on: ubuntu-24.04
+    # One shared demo database: never let two runs touch it at the same time.
+    concurrency:
+      group: jmeds-database
+      cancel-in-progress: false
+    env:
+      DB_SERVICE: ${{ vars.DB_SERVICE || 'cibserp_high' }}
+      JMEDS_PASSWORD: ${{ secrets.JMEDS_PASSWORD }}
+      ADB_WALLET_BASE64: ${{ secrets.ADB_WALLET_BASE64 }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Check secrets are configured
+        run: |
+          if [ -z "$JMEDS_PASSWORD" ] || [ -z "$ADB_WALLET_BASE64" ]; then
+            echo "::error::Repository secrets JMEDS_PASSWORD and ADB_WALLET_BASE64 must be set (see the header of ci.yml)."
+            exit 1
+          fi
+
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - name: Install SQLcl
+        run: |
+          curl -sSfLo "$RUNNER_TEMP/sqlcl.zip" https://download.oracle.com/otn_software/java/sqldeveloper/sqlcl-latest.zip
+          unzip -q "$RUNNER_TEMP/sqlcl.zip" -d "$RUNNER_TEMP"
+          echo "$RUNNER_TEMP/sqlcl/bin" >> "$GITHUB_PATH"
+          "$RUNNER_TEMP/sqlcl/bin/sql" -V
+
+      - name: Restore database wallet
+        run: |
+          echo "WALLET_ZIP=$RUNNER_TEMP/wallet.zip" >> "$GITHUB_ENV"
+          echo "LOGS=$RUNNER_TEMP/logs" >> "$GITHUB_ENV"
+          echo "$ADB_WALLET_BASE64" | base64 -d > "$RUNNER_TEMP/wallet.zip"
+          mkdir -p "$RUNNER_TEMP/logs"
+
+      - name: Liquibase validate and pending changes
+        working-directory: database/changelogs
+        run: |
+          bash ../../.github/scripts/run-sql.sh "$LOGS/lb-validate.log" <<'SQL'
+          lb validate -changelog-file controller.xml
+          lb status -changelog-file controller.xml
+          SQL
+
+      - name: Preview SQL that would be applied
+        working-directory: database/changelogs
+        run: |
+          bash ../../.github/scripts/run-sql.sh "$LOGS/lb-update-sql.log" <<SQL
+          lb update-sql -changelog-file controller.xml -output-file $LOGS/update-preview.sql
+          SQL
+          echo "Pending changesets: $(grep -c '^-- Changeset' "$LOGS/update-preview.sql" || true)"
+
+      - name: Deploy to demo database
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        working-directory: database/changelogs
+        run: |
+          bash ../../.github/scripts/run-sql.sh "$LOGS/lb-update.log" <<'SQL'
+          lb update -changelog-file controller.xml
+          SQL
+
+      - name: Idempotency (second run applies nothing)
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        working-directory: database/changelogs
+        run: |
+          bash ../../.github/scripts/run-sql.sh "$LOGS/lb-recheck.log" <<SQL
+          lb update-sql -changelog-file controller.xml -output-file $LOGS/recheck.sql
+          SQL
+          pending=$(grep -c '^-- Changeset' "$LOGS/recheck.sql" || true)
+          if [ "$pending" -ne 0 ]; then
+            echo "::error::$pending changesets still pending after deploy"
+            exit 1
+          fi
+
+      - name: No invalid objects
+        run: |
+          bash .github/scripts/run-sql.sh "$LOGS/invalid.log" <<'SQL'
+          set heading off feedback off
+          select 'INVALID_COUNT=' || count(*) from user_objects where status <> 'VALID';
+          select object_type || ' ' || object_name || ' is ' || status from user_objects where status <> 'VALID';
+          SQL
+          grep -q 'INVALID_COUNT=0' "$LOGS/invalid.log" || { echo "::error::Invalid objects in JMEDS"; exit 1; }
+
+      - name: utPLSQL unit tests
+        run: |
+          bash .github/scripts/run-sql.sh "$LOGS/ut-check.log" <<'SQL'
+          set heading off feedback off
+          select 'UT3_INSTALLED=' || count(*) from all_users where username = 'UT3';
+          SQL
+          if ! grep -q 'UT3_INSTALLED=1' "$LOGS/ut-check.log"; then
+            echo "::warning::utPLSQL is not installed on the database yet; unit tests skipped (see database/admin/01_install_utplsql.md)."
+            exit 0
+          fi
+          bash .github/scripts/run-sql.sh "$LOGS/ut-run.log" <<SQL
+          set serveroutput on size unlimited
+          exec ut.run(a_paths => ut_varchar2_list('jmeds'), a_color_console => false)
+          set heading off feedback off pagesize 0 linesize 32767 long 100000000 longchunksize 32767 trimspool on
+          spool $LOGS/junit.xml
+          select * from table(ut.run(a_paths => ut_varchar2_list('jmeds'), a_reporter => ut_junit_reporter()));
+          spool off
+          SQL
+          if grep -Eq '<testsuites[^>]*(failures|errors)="[1-9]' "$LOGS/junit.xml"; then
+            echo "::error::utPLSQL tests failed"
+            exit 1
+          fi
+
+      - name: Keep logs and test results
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: database-qa-logs
+          path: ${{ runner.temp }}/logs
+          if-no-files-found: ignore

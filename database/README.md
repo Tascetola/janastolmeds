@@ -6,7 +6,7 @@ Everything in the `JMEDS` schema is built from this folder by SQLcl Liquibase, s
 
 | Folder | Contents |
 | --- | --- |
-| `admin/` | One-off script run as ADMIN: creates the accounts and the `JM_CTX` context |
+| `admin/` | One-off steps run as ADMIN: create the accounts and `JM_CTX` context; install utPLSQL |
 | `changelogs/` | `controller.xml` plus numbered changesets: tables, indexes, triggers, jobs |
 | `seed-data/` | Reference data for all environments: roles, departments, lookups, ICD-10 codes |
 | `packages/` | `JM_*_API` PL/SQL packages (next phase) |
@@ -50,8 +50,9 @@ SQL> lb update -changelog-file controller.xml
 1. Never edit a changeset that has run on a shared database. Fix forward with a new changeset.
 2. Each changeset has an id (`adetola:<file>-<n>`), a `--comment:` naming the SRS requirement, and a `--rollback`.
 3. PL/SQL changesets use `endDelimiter:/` and `runOnChange:true`.
-4. Synthetic test data uses `context:dev,test` so it never reaches production. Never load real patient data outside production.
+4. Synthetic test data lives in `test-data/`, uses `context:dev,test` and sets `CREATED_BY = 'JM_TEST_DATA'`. Never load real patient data outside production.
 5. Wallets and passwords never go in Git (see `.gitignore`).
+6. Production always runs `lb update -changelog-file controller.xml -contexts prod`; without a context Liquibase also runs the synthetic data. See [Test Data and Production Migration Register](../docs/qa/test-data-and-migration.md).
 
 ## Object summary (Release 1.0)
 

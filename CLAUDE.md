@@ -118,17 +118,24 @@ janastolmeds/
 ├── docs/
 │   ├── 01-project-charter-srs.md       JM-DOC-01 (draft v0.1)
 │   ├── 03-database-design.md           JM-DOC-03 (draft v0.1)
+│   ├── qa/test-data-and-migration.md   JM-DOC-07 Annex A: test data per table, production migration
+│   ├── qa/<phase>-<yyyy-mm-dd>.md      QA gate evidence
 │   └── images/ architecture.png, erd.png
 ├── database/
 │   ├── README.md
 │   ├── admin/00_create_accounts.sql    run once as ADMIN (prompts for passwords)
+│   ├── admin/01_install_utplsql.md     utPLSQL v3.2.3 into UT3, run once as ADMIN
 │   ├── changelogs/controller.xml + 010…100_*.sql
 │   ├── seed-data/ 010_roles_departments, 020_lookups, 030_icd10_codes (200 codes)
 │   ├── packages/                       JM_*_API (next)
+│   ├── tests/                          utPLSQL test packages (next)
+│   ├── test-data/                      synthetic demo data, context:dev,test (next)
 │   └── ords/                           REST modules (next)
 ├── apex/                         split APEX export (later)
 ├── mobile/                       Flutter app (later)
-└── .github/workflows/            CI (later)
+└── .github/
+    ├── workflows/ci.yml          static checks, secret scan, Liquibase validate/preview; deploy + idempotency + tests on main
+    └── scripts/                  check-changesets.sh, run-sql.sh
 ```
 
 Documentation set: JM-DOC-01 Charter & SRS · 02 Architecture · 03 Database Design · 04 API Specification · 05 UI Wireframes · 06 Coding Standards · 07 Test Plan & Traceability · 08 Deployment Guide · 09 User Manual.
@@ -138,7 +145,8 @@ Documentation set: JM-DOC-01 Charter & SRS · 02 Architecture · 03 Database Des
 1. Never edit a changeset that has run on a shared database; fix forward with a new one.
 2. Changeset id `adetola:<file>-<n>`; every changeset has `--comment:` naming the SRS requirement and a `--rollback`.
 3. PL/SQL changesets use `endDelimiter:/` and `runOnChange:true`.
-4. Reference data (roles, departments, lookups, ICD-10) loads in all environments; synthetic test data uses `context:dev,test`.
+4. Reference data (roles, departments, lookups, ICD-10) loads in all environments; synthetic test data lives in `database/test-data/`, uses `context:dev,test` and sets `CREATED_BY = 'JM_TEST_DATA'` (CI enforces the context).
+5. **Production always runs `lb update … -contexts prod`.** With no context Liquibase runs every changeset, including synthetic data. Production is a fresh build, never a copy of demo; see `docs/qa/test-data-and-migration.md` for what each table does at migration.
 
 ```bash
 # first time
@@ -156,11 +164,34 @@ lb status | lb update | lb update-sql | lb rollback-count -count 1   (each with 
 - [x] Database design, ERD, data dictionary (JM-DOC-03); all open decisions closed
 - [x] Liquibase changesets 010–100 and seed data (`database/` v0.1) — **written but not yet run against Oracle; first run is the real test**
 - [x] GitHub repo public with README, docs, LICENSE, `.gitignore`
-- [ ] Run changesets on Always Free ADB and fix any errors
+- [x] Run changesets on ADB (28 Oct 2026, CIBSERP `cibserp_high`, schema `JMEDS`): 130 changesets, 29 tables, 33 triggers, 6 sequences, 1 job, all VALID; seed 8 roles, 7 departments, 74 lookups, 200 ICD-10. Deployed without errors.
+- [ ] Database schema QA gate (see Quality assurance) — not yet run
 - [ ] UI wireframes (JM-DOC-05), 5–8 key screens
 - [ ] PL/SQL API layer: `JM_CTX_API`, then `JM_PATIENT_API`, other `JM_*_API`; grants to `JMEDS_API`; audit-chain verification job
 - [ ] API specification (JM-DOC-04, OpenAPI) and ORDS modules
 - [ ] APEX staff portal, Flutter patient app, tests, deployment guide, user manual
+
+## Quality assurance (decided 28 Oct 2026 — production standard)
+
+JanastolMeds is built to production standard. **No phase is "done" until its QA gate passes and the evidence is recorded.** Test design, cases and traceability live in JM-DOC-07; run results go in `docs/qa/<phase>-<yyyy-mm-dd>.md` (what ran, against what commit, pass/fail, defects raised).
+
+Applies to every change:
+
+- Work on a branch and merge to `main` via pull request; CI must be green and the change reviewed before merging.
+- No compile errors or warnings (`PLSQL_WARNINGS='ENABLE:ALL'`); no invalid objects after deploy.
+- Liquibase: `lb validate` clean; a second `lb update` applies 0 changesets; every changeset's `--rollback` is exercised.
+- Secrets scan before commit; synthetic data only.
+- Defects get an ID (`DEF-nnn`), a severity (S1–S4), a fix and a regression test.
+
+| Phase | QA gate (all must pass) |
+| --- | --- |
+| Database schema | Conformance to JM-DOC-03 (every table, column, type, constraint and index present and named per conventions); each check/unique/FK constraint rejects bad data; audit-column, `ROW_VERSION`, visit-lock and audit-log-guard triggers behave; full rollback and re-apply on a scratch schema; seed data counts and values verified |
+| PL/SQL API layer | utPLSQL tests for every FR and business rule, positive and negative; ≥ 80% line coverage per package; RBAC and patient-isolation tests (a patient context can never read another patient's rows); audit entries written and hash chain verifies; concurrency test for booking and dispensing |
+| ORDS REST API | Newman contract tests against the OpenAPI spec (JM-DOC-04); OAuth2 on every endpoint, expired/invalid/wrong-role tokens rejected; OWASP API Security Top 10 checklist; input validation and error format |
+| APEX web portal | Functional test scripts per FR; role-based page and item access; APEX Advisor clean; WCAG 2.1 AA accessibility checks; browser matrix |
+| Flutter app | `flutter analyze` clean; unit, widget and integration tests; token storage and session expiry; Android 8+ and iOS 15+ device checks |
+| Performance and security | NFR targets met under load; vulnerability scan; NDPA 2023 privacy checklist (consent, access export, anonymisation, 6-year audit retention) |
+| Release | Traceability matrix complete (every FR → TC → result); UAT signed off; no open S1/S2 defects; deployment and rollback rehearsed from scratch; test summary report published |
 
 ## Working conventions
 
