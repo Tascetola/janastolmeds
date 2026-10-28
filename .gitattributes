@@ -1,0 +1,3 @@
+# Shell scripts and CI files must keep LF line endings, even on Windows checkouts
+*.sh  text eol=lf
+*.yml text eol=lf
