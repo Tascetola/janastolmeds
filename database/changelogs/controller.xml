@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  JanastolMeds master changelog.
+  Run as JMEDS from the database/changelogs folder:
+      SQL> lb update -changelog-file controller.xml
+  Files run in the order listed. Never reorder or edit a changeset that has
+  already run in a shared database; add a new file or changeset instead.
+-->
+<databaseChangeLog
+    xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+        http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.20.xsd">
+
+    <!-- Schema objects (JM-DOC-03 sections 4 and 5) -->
+    <include file="010_admin_tables.sql"          relativeToChangelogFile="true"/>
+    <include file="020_patient_tables.sql"        relativeToChangelogFile="true"/>
+    <include file="030_appointment_tables.sql"    relativeToChangelogFile="true"/>
+    <include file="040_clinical_tables.sql"       relativeToChangelogFile="true"/>
+    <include file="050_pharmacy_tables.sql"       relativeToChangelogFile="true"/>
+    <include file="060_lab_tables.sql"            relativeToChangelogFile="true"/>
+    <include file="070_billing_tables.sql"        relativeToChangelogFile="true"/>
+    <include file="080_sequences_and_indexes.sql" relativeToChangelogFile="true"/>
+    <include file="090_audit_triggers.sql"        relativeToChangelogFile="true"/>
+    <include file="100_scheduler_jobs.sql"        relativeToChangelogFile="true"/>
+
+    <!-- Reference data, all environments -->
+    <include file="../seed-data/010_roles_departments.sql" relativeToChangelogFile="true"/>
+    <include file="../seed-data/020_lookups.sql"           relativeToChangelogFile="true"/>
+    <include file="../seed-data/030_icd10_codes.sql"       relativeToChangelogFile="true"/>
+
+    <!-- Next phase: ../packages (JM_*_API, runOnChange) and ../ords (REST modules) -->
+</databaseChangeLog>

@@ -1,0 +1,201 @@
+ICD10_CODE,DESCRIPTION,CHAPTER,CHAPTER_TITLE,CHRONIC_FLAG
+A01.0,Typhoid fever,I,Infectious and parasitic diseases,N
+A06.0,Acute amoebic dysentery,I,Infectious and parasitic diseases,N
+A09.9,Gastroenteritis and colitis of unspecified origin,I,Infectious and parasitic diseases,N
+A15.0,"Tuberculosis of lung, confirmed by sputum microscopy with or without culture",I,Infectious and parasitic diseases,N
+A16.9,"Respiratory tuberculosis unspecified, without bacteriological or histological confirmation",I,Infectious and parasitic diseases,N
+A49.9,"Bacterial infection, unspecified",I,Infectious and parasitic diseases,N
+A53.9,"Syphilis, unspecified",I,Infectious and parasitic diseases,N
+A54.9,"Gonococcal infection, unspecified",I,Infectious and parasitic diseases,N
+A56.0,Chlamydial infection of lower genitourinary tract,I,Infectious and parasitic diseases,N
+A59.0,Urogenital trichomoniasis,I,Infectious and parasitic diseases,N
+A96.2,Lassa fever,I,Infectious and parasitic diseases,N
+B01.9,Varicella without complication,I,Infectious and parasitic diseases,N
+B02.9,Zoster without complication,I,Infectious and parasitic diseases,N
+B05.9,Measles without complication,I,Infectious and parasitic diseases,N
+B15.9,Hepatitis A without hepatic coma,I,Infectious and parasitic diseases,N
+B16.9,Acute hepatitis B without delta-agent and without hepatic coma,I,Infectious and parasitic diseases,N
+B18.1,Chronic viral hepatitis B without delta-agent,I,Infectious and parasitic diseases,Y
+B18.2,Chronic viral hepatitis C,I,Infectious and parasitic diseases,Y
+B24,Unspecified human immunodeficiency virus [HIV] disease,I,Infectious and parasitic diseases,Y
+B34.9,"Viral infection, unspecified",I,Infectious and parasitic diseases,N
+B35.4,Tinea corporis,I,Infectious and parasitic diseases,N
+B36.0,Pityriasis versicolor,I,Infectious and parasitic diseases,N
+B37.0,Candidal stomatitis,I,Infectious and parasitic diseases,N
+B37.3,Candidiasis of vulva and vagina,I,Infectious and parasitic diseases,N
+B50.0,Plasmodium falciparum malaria with cerebral complications,I,Infectious and parasitic diseases,N
+B50.9,"Plasmodium falciparum malaria, unspecified",I,Infectious and parasitic diseases,N
+B54,Unspecified malaria,I,Infectious and parasitic diseases,N
+B76.9,"Hookworm disease, unspecified",I,Infectious and parasitic diseases,N
+B77.9,"Ascariasis, unspecified",I,Infectious and parasitic diseases,N
+B82.9,"Intestinal parasitism, unspecified",I,Infectious and parasitic diseases,N
+B86,Scabies,I,Infectious and parasitic diseases,N
+C50.9,"Malignant neoplasm of breast, unspecified",II,Neoplasms,Y
+C61,Malignant neoplasm of prostate,II,Neoplasms,Y
+D25.9,"Leiomyoma of uterus, unspecified",II,Neoplasms,Y
+D50.9,"Iron deficiency anaemia, unspecified",III,Blood and immune disorders,N
+D57.0,Sickle-cell anaemia with crisis,III,Blood and immune disorders,Y
+D57.1,Sickle-cell anaemia without crisis,III,Blood and immune disorders,Y
+D57.3,Sickle-cell trait,III,Blood and immune disorders,N
+D64.9,"Anaemia, unspecified",III,Blood and immune disorders,N
+E03.9,"Hypothyroidism, unspecified",IV,"Endocrine, nutritional and metabolic",Y
+E04.9,"Nontoxic goitre, unspecified",IV,"Endocrine, nutritional and metabolic",N
+E05.9,"Thyrotoxicosis, unspecified",IV,"Endocrine, nutritional and metabolic",Y
+E10.9,Type 1 diabetes mellitus without complications,IV,"Endocrine, nutritional and metabolic",Y
+E11.2,Type 2 diabetes mellitus with renal complications,IV,"Endocrine, nutritional and metabolic",Y
+E11.4,Type 2 diabetes mellitus with neurological complications,IV,"Endocrine, nutritional and metabolic",Y
+E11.5,Type 2 diabetes mellitus with peripheral circulatory complications,IV,"Endocrine, nutritional and metabolic",Y
+E11.9,Type 2 diabetes mellitus without complications,IV,"Endocrine, nutritional and metabolic",Y
+E28.2,Polycystic ovarian syndrome,IV,"Endocrine, nutritional and metabolic",Y
+E46,Unspecified protein-energy malnutrition,IV,"Endocrine, nutritional and metabolic",N
+E66.9,"Obesity, unspecified",IV,"Endocrine, nutritional and metabolic",Y
+E78.5,"Hyperlipidaemia, unspecified",IV,"Endocrine, nutritional and metabolic",Y
+E86,Volume depletion,IV,"Endocrine, nutritional and metabolic",N
+F10.2,Mental and behavioural disorders due to use of alcohol: dependence syndrome,V,Mental and behavioural disorders,Y
+F20.9,"Schizophrenia, unspecified",V,Mental and behavioural disorders,Y
+F31.9,"Bipolar affective disorder, unspecified",V,Mental and behavioural disorders,Y
+F32.9,"Depressive episode, unspecified",V,Mental and behavioural disorders,N
+F41.1,Generalized anxiety disorder,V,Mental and behavioural disorders,Y
+F41.9,"Anxiety disorder, unspecified",V,Mental and behavioural disorders,N
+F51.0,Nonorganic insomnia,V,Mental and behavioural disorders,N
+G40.9,"Epilepsy, unspecified",VI,Nervous system,Y
+G43.9,"Migraine, unspecified",VI,Nervous system,Y
+G44.2,Tension-type headache,VI,Nervous system,N
+G51.0,Bell palsy,VI,Nervous system,N
+G62.9,"Polyneuropathy, unspecified",VI,Nervous system,Y
+G80.9,"Cerebral palsy, unspecified",VI,Nervous system,Y
+H10.1,Acute atopic conjunctivitis,VII,Eye and adnexa,N
+H10.9,"Conjunctivitis, unspecified",VII,Eye and adnexa,N
+H25.9,"Senile cataract, unspecified",VII,Eye and adnexa,Y
+H40.9,"Glaucoma, unspecified",VII,Eye and adnexa,Y
+H52.4,Presbyopia,VII,Eye and adnexa,Y
+H60.9,"Otitis externa, unspecified",VIII,Ear and mastoid,N
+H61.2,Impacted cerumen,VIII,Ear and mastoid,N
+H66.9,"Otitis media, unspecified",VIII,Ear and mastoid,N
+H91.9,"Hearing loss, unspecified",VIII,Ear and mastoid,Y
+I10,Essential (primary) hypertension,IX,Circulatory system,Y
+I11.9,Hypertensive heart disease without (congestive) heart failure,IX,Circulatory system,Y
+I20.9,"Angina pectoris, unspecified",IX,Circulatory system,Y
+I25.9,"Chronic ischaemic heart disease, unspecified",IX,Circulatory system,Y
+I50.9,"Heart failure, unspecified",IX,Circulatory system,Y
+I64,"Stroke, not specified as haemorrhage or infarction",IX,Circulatory system,N
+I69.4,"Sequelae of stroke, not specified as haemorrhage or infarction",IX,Circulatory system,Y
+J00,Acute nasopharyngitis [common cold],X,Respiratory system,N
+J01.9,"Acute sinusitis, unspecified",X,Respiratory system,N
+J02.9,"Acute pharyngitis, unspecified",X,Respiratory system,N
+J03.9,"Acute tonsillitis, unspecified",X,Respiratory system,N
+J06.9,"Acute upper respiratory infection, unspecified",X,Respiratory system,N
+J11.1,"Influenza with other respiratory manifestations, virus not identified",X,Respiratory system,N
+J18.9,"Pneumonia, unspecified",X,Respiratory system,N
+J20.9,"Acute bronchitis, unspecified",X,Respiratory system,N
+J30.4,"Allergic rhinitis, unspecified",X,Respiratory system,Y
+J32.9,"Chronic sinusitis, unspecified",X,Respiratory system,Y
+J35.0,Chronic tonsillitis,X,Respiratory system,Y
+J44.9,"Chronic obstructive pulmonary disease, unspecified",X,Respiratory system,Y
+J45.0,Predominantly allergic asthma,X,Respiratory system,Y
+J45.9,"Asthma, unspecified",X,Respiratory system,Y
+K02.9,"Dental caries, unspecified",XI,Digestive system,N
+K05.1,Chronic gingivitis,XI,Digestive system,N
+K21.9,Gastro-oesophageal reflux disease without oesophagitis,XI,Digestive system,Y
+K25.9,"Gastric ulcer, unspecified as acute or chronic, without haemorrhage or perforation",XI,Digestive system,Y
+K26.9,"Duodenal ulcer, unspecified as acute or chronic, without haemorrhage or perforation",XI,Digestive system,Y
+K29.7,"Gastritis, unspecified",XI,Digestive system,N
+K30,Functional dyspepsia,XI,Digestive system,N
+K35.8,"Acute appendicitis, other and unspecified",XI,Digestive system,N
+K40.9,"Unilateral or unspecified inguinal hernia, without obstruction or gangrene",XI,Digestive system,N
+K52.9,"Noninfective gastroenteritis and colitis, unspecified",XI,Digestive system,N
+K58.9,Irritable bowel syndrome without diarrhoea,XI,Digestive system,Y
+K59.0,Constipation,XI,Digestive system,N
+K64.9,"Haemorrhoids, unspecified",XI,Digestive system,N
+K74.6,Other and unspecified cirrhosis of liver,XI,Digestive system,Y
+K76.0,"Fatty (change of) liver, not elsewhere classified",XI,Digestive system,Y
+K80.2,Calculus of gallbladder without cholecystitis,XI,Digestive system,Y
+L01.0,Impetigo [any organism] [any site],XII,Skin and subcutaneous tissue,N
+L02.9,"Cutaneous abscess, furuncle and carbuncle, unspecified",XII,Skin and subcutaneous tissue,N
+L03.9,"Cellulitis, unspecified",XII,Skin and subcutaneous tissue,N
+L20.9,"Atopic dermatitis, unspecified",XII,Skin and subcutaneous tissue,Y
+L29.9,"Pruritus, unspecified",XII,Skin and subcutaneous tissue,N
+L30.9,"Dermatitis, unspecified",XII,Skin and subcutaneous tissue,N
+L40.0,Psoriasis vulgaris,XII,Skin and subcutaneous tissue,Y
+L50.9,"Urticaria, unspecified",XII,Skin and subcutaneous tissue,N
+L70.0,Acne vulgaris,XII,Skin and subcutaneous tissue,N
+L91.0,Hypertrophic scar (keloid),XII,Skin and subcutaneous tissue,N
+M06.9,"Rheumatoid arthritis, unspecified",XIII,Musculoskeletal system,Y
+M10.9,"Gout, unspecified",XIII,Musculoskeletal system,Y
+M16.9,"Coxarthrosis, unspecified",XIII,Musculoskeletal system,Y
+M17.9,"Gonarthrosis, unspecified",XIII,Musculoskeletal system,Y
+M25.5,Pain in joint,XIII,Musculoskeletal system,N
+M47.9,"Spondylosis, unspecified",XIII,Musculoskeletal system,Y
+M51.2,Other specified intervertebral disc displacement,XIII,Musculoskeletal system,Y
+M54.2,Cervicalgia,XIII,Musculoskeletal system,N
+M54.4,Lumbago with sciatica,XIII,Musculoskeletal system,N
+M54.5,Low back pain,XIII,Musculoskeletal system,N
+M79.1,Myalgia,XIII,Musculoskeletal system,N
+M81.9,"Osteoporosis, unspecified",XIII,Musculoskeletal system,Y
+N10,Acute tubulo-interstitial nephritis,XIV,Genitourinary system,N
+N18.9,"Chronic kidney disease, unspecified",XIV,Genitourinary system,Y
+N20.0,Calculus of kidney,XIV,Genitourinary system,Y
+N30.0,Acute cystitis,XIV,Genitourinary system,N
+N39.0,"Urinary tract infection, site not specified",XIV,Genitourinary system,N
+N40,Hyperplasia of prostate,XIV,Genitourinary system,Y
+N46,Male infertility,XIV,Genitourinary system,Y
+N63,Unspecified lump in breast,XIV,Genitourinary system,N
+N73.9,"Female pelvic inflammatory disease, unspecified",XIV,Genitourinary system,N
+N76.0,Acute vaginitis,XIV,Genitourinary system,N
+N83.2,Other and unspecified ovarian cysts,XIV,Genitourinary system,N
+N91.2,"Amenorrhoea, unspecified",XIV,Genitourinary system,N
+N92.0,Excessive and frequent menstruation with regular cycle,XIV,Genitourinary system,N
+N94.6,"Dysmenorrhoea, unspecified",XIV,Genitourinary system,N
+N95.1,Menopausal and female climacteric states,XIV,Genitourinary system,N
+N97.9,"Female infertility, unspecified",XIV,Genitourinary system,Y
+O03.9,"Spontaneous abortion, complete or unspecified, without complication",XV,Pregnancy and childbirth,N
+O13,Gestational [pregnancy-induced] hypertension without significant proteinuria,XV,Pregnancy and childbirth,N
+O14.9,"Pre-eclampsia, unspecified",XV,Pregnancy and childbirth,N
+O20.0,Threatened abortion,XV,Pregnancy and childbirth,N
+O21.0,Mild hyperemesis gravidarum,XV,Pregnancy and childbirth,N
+O23.4,Unspecified infection of urinary tract in pregnancy,XV,Pregnancy and childbirth,N
+O24.4,Diabetes mellitus arising in pregnancy,XV,Pregnancy and childbirth,N
+O98.6,"Protozoal diseases complicating pregnancy, childbirth and the puerperium",XV,Pregnancy and childbirth,N
+O99.0,"Anaemia complicating pregnancy, childbirth and the puerperium",XV,Pregnancy and childbirth,N
+R00.2,Palpitations,XVIII,Symptoms and signs,N
+R04.0,Epistaxis,XVIII,Symptoms and signs,N
+R05,Cough,XVIII,Symptoms and signs,N
+R06.0,Dyspnoea,XVIII,Symptoms and signs,N
+R07.4,"Chest pain, unspecified",XVIII,Symptoms and signs,N
+R10.4,Other and unspecified abdominal pain,XVIII,Symptoms and signs,N
+R11,Nausea and vomiting,XVIII,Symptoms and signs,N
+R21,Rash and other nonspecific skin eruption,XVIII,Symptoms and signs,N
+R30.0,Dysuria,XVIII,Symptoms and signs,N
+R42,Dizziness and giddiness,XVIII,Symptoms and signs,N
+R50.9,"Fever, unspecified",XVIII,Symptoms and signs,N
+R51,Headache,XVIII,Symptoms and signs,N
+R53,Malaise and fatigue,XVIII,Symptoms and signs,N
+R55,Syncope and collapse,XVIII,Symptoms and signs,N
+R56.0,Febrile convulsions,XVIII,Symptoms and signs,N
+R63.4,Abnormal weight loss,XVIII,Symptoms and signs,N
+S00.9,"Superficial injury of head, part unspecified",XIX,Injury and poisoning,N
+S01.9,"Open wound of head, part unspecified",XIX,Injury and poisoning,N
+S06.0,Concussion,XIX,Injury and poisoning,N
+S52.5,Fracture of lower end of radius,XIX,Injury and poisoning,N
+S61.9,"Open wound of wrist and hand, part unspecified",XIX,Injury and poisoning,N
+S93.4,Sprain and strain of ankle,XIX,Injury and poisoning,N
+T14.0,Superficial injury of unspecified body region,XIX,Injury and poisoning,N
+T14.1,Open wound of unspecified body region,XIX,Injury and poisoning,N
+T30.0,"Burn of unspecified body region, unspecified degree",XIX,Injury and poisoning,N
+T63.0,Toxic effect of snake venom,XIX,Injury and poisoning,N
+T78.4,"Allergy, unspecified",XIX,Injury and poisoning,N
+T88.7,Unspecified adverse effect of drug or medicament,XIX,Injury and poisoning,N
+Z00.0,General medical examination,XXI,Factors influencing health status,N
+Z00.1,Routine child health examination,XXI,Factors influencing health status,N
+Z02.1,Pre-employment examination,XXI,Factors influencing health status,N
+Z02.7,Issue of medical certificate,XXI,Factors influencing health status,N
+Z09.9,Follow-up examination after unspecified treatment for other conditions,XXI,Factors influencing health status,N
+Z11.4,Special screening examination for human immunodeficiency virus [HIV],XXI,Factors influencing health status,N
+Z13.1,Special screening examination for diabetes mellitus,XXI,Factors influencing health status,N
+Z21,Asymptomatic human immunodeficiency virus [HIV] infection status,XXI,Factors influencing health status,Y
+Z30.0,General counselling and advice on contraception,XXI,Factors influencing health status,N
+Z34.9,"Supervision of normal pregnancy, unspecified",XXI,Factors influencing health status,N
+Z48.0,Attention to dressings and sutures,XXI,Factors influencing health status,N
+Z71.3,Dietary counselling and surveillance,XXI,Factors influencing health status,N
+Z76.0,Issue of repeat prescription,XXI,Factors influencing health status,N
+U07.1,"COVID-19, virus identified",XXII,Codes for special purposes,N
