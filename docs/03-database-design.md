@@ -9,7 +9,7 @@ The JanastolMeds Release 1.0 schema has 29 tables in 7 modules, all in one schem
 | Item        | Detail                          |
 |-------------|---------------------------------|
 | Document ID | JM-DOC-03                       |
-| Version     | 0.1 (Draft)                     |
+| Version     | 0.2 (Draft)                     |
 | Owner       | Adetola                         |
 | Depends on  | JM-DOC-01 Project Charter & SRS |
 
@@ -160,7 +160,7 @@ Null column: **N** = NOT NULL, **Y** = nullable. Audit columns from section 1 ar
 | TABLE_NAME | VARCHAR2(30 CHAR)              | N    |                                                                       |
 | RECORD_ID  | NUMBER                         | N    | PK of the affected row                                                |
 | PATIENT_ID | NUMBER                         | Y    | For per-patient access reports (no FK, so logs survive anonymisation) |
-| CLIENT     | VARCHAR2(10 CHAR)              | N    | APEX / ORDS                                                           |
+| CLIENT     | VARCHAR2(10 CHAR)              | N    | APEX / ORDS / JOB                                                           |
 | IP_ADDRESS | VARCHAR2(45 CHAR)              | Y    | IPv4 or IPv6                                                          |
 | DETAIL     | CLOB                           | Y    | JSON of changed columns (old and new values)                          |
 | PREV_HASH  | VARCHAR2(64 CHAR)              | Y    | Hash of previous row: tamper evidence                                 |
@@ -315,7 +315,7 @@ Null column: **N** = NOT NULL, **Y** = nullable. Audit columns from section 1 ar
 | SPO2_PCT      | NUMBER(3)                      | Y    | 50–100                                       |
 | WEIGHT_KG     | NUMBER(5,1)                    | Y    |                                              |
 | HEIGHT_CM     | NUMBER(5,1)                    | Y    |                                              |
-| BMI           | NUMBER(4,1)                    | Y    | Virtual column: WEIGHT_KG / (HEIGHT_CM/100)² |
+| BMI           | NUMBER(6,1)                    | Y    | Virtual column: WEIGHT_KG / (HEIGHT_CM/100)²; (6,1) holds every value the vitals ranges allow |
 
 **JM_ICD10_CODES**
 
@@ -494,7 +494,7 @@ Null column: **N** = NOT NULL, **Y** = nullable. Audit columns from section 1 ar
 | DESCRIPTION     | VARCHAR2(200 CHAR) | N    |                                                                                              |
 | QTY             | NUMBER(8)          | N    | \> 0                                                                                         |
 | UNIT_PRICE      | NUMBER(12,2)       | N    | Price at time of charge                                                                      |
-| LINE_AMOUNT     | NUMBER(12,2)       | N    | Virtual column: QTY × UNIT_PRICE                                                             |
+| LINE_AMOUNT     | NUMBER(14,2)       | Y    | Virtual column: QTY × UNIT_PRICE; wider than a single price so large quantities cannot overflow                                                             |
 | HMO_COVERED     | VARCHAR2(1)        | N    | Y/N                                                                                          |
 
 **JM_PAYMENTS**
@@ -611,7 +611,7 @@ The schema is built by SQLcl Liquibase from versioned SQL changesets in Git, nev
 database/  
 ├── changelogs/  
 │ ├── controller.xml Master changelog, includes the files below in order  
-│ ├── 001_accounts_and_context.sql JMEDS_API / JMEDS_RO grants, JM_CTX context  
+│ ├── (accounts and JM_CTX are created once by database/admin/00_create_accounts.sql, run as ADMIN; not a changeset)  
 │ ├── 010_admin_tables.sql Departments, staff, roles, lookups, audit log  
 │ ├── 020_patient_tables.sql Patients, consents, allergies, HMO plans, accounts  
 │ ├── 030_appointment_tables.sql  
@@ -640,9 +640,9 @@ Rules for changesets:
 
 - [x] Object prefix: JM\_ for all tables, packages, views, sequences and the context; JM- for business numbers; JM-DOC for document IDs (decided 27 Oct 2026).
 
-- [ ] Confirm the schema names JMEDS, JMEDS_API and JMEDS_RO.
+- [x] Confirm the schema names JMEDS, JMEDS_API and JMEDS_RO. (confirmed 27 Oct 2026)
 
-- [ ] Choose the ICD-10 subset to load (suggest the 200 most common outpatient codes).
+- [x] Choose the ICD-10 subset to load (suggest the 200 most common outpatient codes). (200 codes loaded, 28 Oct 2026)
 
 **Next steps**
 

@@ -1,12 +1,15 @@
 # JanastolMeds CI: the automated part of every QA gate (see "Quality assurance" in CLAUDE.md).
 #
-#   Pull request -> static checks, then read-only database checks: Liquibase validate/status/preview,
-#                   invalid objects, utPLSQL suite. Nothing is deployed from an unmerged branch.
-#   Push to main -> the same, then deploy (lb update) to the demo database and prove it is
-#                   idempotent (a second run would apply nothing), then run the tests again.
+# The demo database on CIBSERP is the single dev/test environment (docs/qa/test-data-and-migration.md, D1),
+# so pull requests deploy to it: that is the only way a PR's new tests and changesets can be exercised.
+# Runs are serialised so two branches never touch it at once.
+#
+#   Pull request and push to main:
+#     static checks -> Liquibase validate -> deploy (lb update) -> rollback test of the changesets just applied
+#     -> idempotency (nothing left pending) -> schema matches JM-DOC-03 -> no invalid objects -> utPLSQL suite
 #
 # Secrets (Settings > Secrets and variables > Actions):
-#   ADB_WALLET_BASE64  base64 of the Autonomous Database wallet zip
+#   ADB_WALLET_BASE64  base64 of the Autonomous Database wallet zip (without credentials.sso)
 #   JMEDS_PASSWORD     password of the JMEDS schema owner
 # Variable (optional): DB_SERVICE, default cibserp_high
 
@@ -83,29 +86,32 @@ jobs:
       - name: Liquibase validate and pending changes
         working-directory: database/changelogs
         run: |
-          bash ../../.github/scripts/run-sql.sh "$LOGS/lb-validate.log" <<'SQL'
+          bash ../../.github/scripts/run-sql.sh "$LOGS/lb-validate.log" <<SQL
           lb validate -changelog-file controller.xml
-          lb status -changelog-file controller.xml
-          SQL
-
-      - name: Preview SQL that would be applied
-        working-directory: database/changelogs
-        run: |
-          bash ../../.github/scripts/run-sql.sh "$LOGS/lb-update-sql.log" <<SQL
           lb update-sql -changelog-file controller.xml -output-file $LOGS/update-preview.sql
           SQL
-          echo "Pending changesets: $(grep -c '^-- Changeset' "$LOGS/update-preview.sql" || true)"
+          pending=$(grep -c '^-- Changeset' "$LOGS/update-preview.sql" || true)
+          echo "PENDING=$pending" >> "$GITHUB_ENV"
+          echo "Pending changesets: $pending"
 
       - name: Deploy to demo database
-        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        if: env.PENDING != '0'
         working-directory: database/changelogs
         run: |
           bash ../../.github/scripts/run-sql.sh "$LOGS/lb-update.log" <<'SQL'
           lb update -changelog-file controller.xml
           SQL
 
+      - name: Rollback test of the changesets just applied
+        if: env.PENDING != '0'
+        working-directory: database/changelogs
+        run: |
+          bash ../../.github/scripts/run-sql.sh "$LOGS/lb-rollback.log" <<SQL
+          lb rollback-count -changelog-file controller.xml -count $PENDING
+          lb update -changelog-file controller.xml
+          SQL
+
       - name: Idempotency (second run applies nothing)
-        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         working-directory: database/changelogs
         run: |
           bash ../../.github/scripts/run-sql.sh "$LOGS/lb-recheck.log" <<SQL
@@ -116,6 +122,11 @@ jobs:
             echo "::error::$pending changesets still pending after deploy"
             exit 1
           fi
+
+      - name: Schema matches JM-DOC-03
+        run: |
+          bash .github/scripts/run-sql.sh "$LOGS/schema-columns.log" < database/qa/schema_columns.sql
+          bash .github/scripts/check-schema-vs-design.sh "$LOGS/schema-columns.log"
 
       - name: No invalid objects
         run: |
@@ -133,8 +144,8 @@ jobs:
           select 'UT3_INSTALLED=' || count(*) from all_users where username = 'UT3';
           SQL
           if ! grep -q 'UT3_INSTALLED=1' "$LOGS/ut-check.log"; then
-            echo "::warning::utPLSQL is not installed on the database yet; unit tests skipped (see database/admin/01_install_utplsql.md)."
-            exit 0
+            echo "::error::utPLSQL is not installed on the database (see database/admin/01_install_utplsql.md)."
+            exit 1
           fi
           bash .github/scripts/run-sql.sh "$LOGS/ut-run.log" <<SQL
           set serveroutput on size unlimited
@@ -144,6 +155,12 @@ jobs:
           select * from table(ut.run(a_paths => ut_varchar2_list('jmeds'), a_reporter => ut_junit_reporter()));
           spool off
           SQL
+          tests=$(grep -oE '<testsuites[^>]* tests="[0-9]+"' "$LOGS/junit.xml" | grep -oE 'tests="[0-9]+"' | grep -oE '[0-9]+' || echo 0)
+          echo "utPLSQL tests run: $tests"
+          if [ "$tests" -eq 0 ]; then
+            echo "::error::No utPLSQL tests ran: check the suites are deployed with their annotations"
+            exit 1
+          fi
           if grep -Eq '<testsuites[^>]*(failures|errors)="[1-9]' "$LOGS/junit.xml"; then
             echo "::error::utPLSQL tests failed"
             exit 1

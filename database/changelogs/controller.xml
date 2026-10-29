@@ -30,4 +30,12 @@
     <include file="../seed-data/030_icd10_codes.sql"       relativeToChangelogFile="true"/>
 
     <!-- Next phase: ../packages (JM_*_API, runOnChange) and ../ords (REST modules) -->
+
+    <!-- utPLSQL test suites, dev and test environments only (context:dev,test on every changeset).
+         Needs utPLSQL in the database: see ../admin/01_install_utplsql.md -->
+    <include file="../tests/010_jm_ut_fixture.sql"     relativeToChangelogFile="true"/>
+    <include file="../tests/020_jm_ut_schema.sql"      relativeToChangelogFile="true"/>
+    <include file="../tests/030_jm_ut_constraints.sql" relativeToChangelogFile="true"/>
+    <include file="../tests/040_jm_ut_triggers.sql"    relativeToChangelogFile="true"/>
+    <include file="../tests/050_jm_ut_reference.sql"   relativeToChangelogFile="true"/>
 </databaseChangeLog>

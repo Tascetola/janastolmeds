@@ -2,7 +2,7 @@
 
 Context for AI assistants (Claude Code, Claude chat) working in this repository. Read this first; it records what has been decided so it is not re-litigated.
 
-Last updated: 27 Oct 2026 · Owner: Adetola (solution architect / lead developer)
+Last updated: 28 Oct 2026 · Owner: Adetola (solution architect / lead developer)
 
 ## Project
 
@@ -119,7 +119,8 @@ janastolmeds/
 │   ├── 01-project-charter-srs.md       JM-DOC-01 (draft v0.1)
 │   ├── 03-database-design.md           JM-DOC-03 (draft v0.1)
 │   ├── qa/test-data-and-migration.md   JM-DOC-07 Annex A: test data per table, production migration
-│   ├── qa/<phase>-<yyyy-mm-dd>.md      QA gate evidence
+│   ├── qa/<phase>-<yyyy-mm-dd>.md      QA gate evidence (database-2026-10-28.md)
+│   ├── qa/defects.md                   JM-DOC-07 Annex B: defect register (DEF-nnn)
 │   └── images/ architecture.png, erd.png
 ├── database/
 │   ├── README.md
@@ -128,8 +129,9 @@ janastolmeds/
 │   ├── changelogs/controller.xml + 010…100_*.sql
 │   ├── seed-data/ 010_roles_departments, 020_lookups, 030_icd10_codes (200 codes)
 │   ├── packages/                       JM_*_API (next)
-│   ├── tests/                          utPLSQL test packages (next)
+│   ├── tests/                          utPLSQL suites JM_UT_* (context:dev,test): schema, constraints, triggers, reference
 │   ├── test-data/                      synthetic demo data, context:dev,test (next)
+│   ├── qa/                             schema_columns.sql (design conformance), schema_snapshot.sql (rollback/env compare)
 │   └── ords/                           REST modules (next)
 ├── apex/                         split APEX export (later)
 ├── mobile/                       Flutter app (later)
@@ -144,7 +146,7 @@ Documentation set: JM-DOC-01 Charter & SRS · 02 Architecture · 03 Database Des
 
 1. Never edit a changeset that has run on a shared database; fix forward with a new one.
 2. Changeset id `adetola:<file>-<n>`; every changeset has `--comment:` naming the SRS requirement and a `--rollback`.
-3. PL/SQL changesets use `endDelimiter:/` and `runOnChange:true`.
+3. PL/SQL changesets use `endDelimiter:/`, `runOnChange:true` and `stripComments:false` (Liquibase strips comments by default, which deletes utPLSQL annotations; CI enforces all three). Test packages are named `JM_UT_*`.
 4. Reference data (roles, departments, lookups, ICD-10) loads in all environments; synthetic test data lives in `database/test-data/`, uses `context:dev,test` and sets `CREATED_BY = 'JM_TEST_DATA'` (CI enforces the context).
 5. **Production always runs `lb update … -contexts prod`.** With no context Liquibase runs every changeset, including synthetic data. Production is a fresh build, never a copy of demo; see `docs/qa/test-data-and-migration.md` for what each table does at migration.
 
@@ -165,7 +167,7 @@ lb status | lb update | lb update-sql | lb rollback-count -count 1   (each with 
 - [x] Liquibase changesets 010–100 and seed data (`database/` v0.1) — **written but not yet run against Oracle; first run is the real test**
 - [x] GitHub repo public with README, docs, LICENSE, `.gitignore`
 - [x] Run changesets on ADB (28 Oct 2026, CIBSERP `cibserp_high`, schema `JMEDS`): 130 changesets, 29 tables, 33 triggers, 6 sequences, 1 job, all VALID; seed 8 roles, 7 departments, 74 lookups, 200 ICD-10. Deployed without errors.
-- [ ] Database schema QA gate (see Quality assurance) — not yet run
+- [x] Database schema QA gate (28 Oct 2026): **passed**, 85 utPLSQL tests (84 pass, 1 disabled for DEF-005), 2 full rollback tests, schema = JM-DOC-03 v0.2. Open: DEF-005, DEF-008 (deferred), DEF-006, DEF-009 (decision). See docs/qa/database-2026-10-28.md
 - [ ] UI wireframes (JM-DOC-05), 5–8 key screens
 - [ ] PL/SQL API layer: `JM_CTX_API`, then `JM_PATIENT_API`, other `JM_*_API`; grants to `JMEDS_API`; audit-chain verification job
 - [ ] API specification (JM-DOC-04, OpenAPI) and ORDS modules

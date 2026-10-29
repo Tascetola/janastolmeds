@@ -3,8 +3,10 @@
 #   - every file is "--liquibase formatted sql"
 #   - every changeset id is adetola:<id> and unique across the changelog
 #   - every changeset has a --comment: and a --rollback
-#   - CREATE OR REPLACE (PL/SQL, views) changesets use runOnChange:true; any changeset with a "/" line uses endDelimiter:/
-#   - synthetic data (database/test-data) uses context:dev,test so it never reaches production
+#   - CREATE OR REPLACE (PL/SQL, views) changesets use runOnChange:true and stripComments:false (Liquibase strips
+#     comments by default, which deletes utPLSQL annotations); any changeset with a "/" line uses endDelimiter:/
+#   - test packages (database/tests) and synthetic data (database/test-data) use context:dev,test
+#     so they never reach production
 #   - comments should name an SRS requirement (FR-/NFR-); missing ones are counted as warnings (VERBOSE=1 lists them)
 #     because supporting changesets (FK indexes, audit triggers, lookups) have no single requirement
 set -euo pipefail
@@ -18,8 +20,9 @@ function finish() {
     if (!has_comment)  { printf "ERROR %s: changeset %s has no --comment:\n", FILENAME_OF_ID, id; errors++ }
     if (!has_rollback) { printf "ERROR %s: changeset %s has no --rollback\n", FILENAME_OF_ID, id; errors++ }
     if (has_cor && header !~ /runOnChange:true/) { printf "ERROR %s: changeset %s creates PL/SQL or a view but lacks runOnChange:true\n", FILENAME_OF_ID, id; errors++ }
+    if (has_cor && header !~ /stripComments:false/) { printf "ERROR %s: changeset %s creates PL/SQL or a view but lacks stripComments:false (comments and utPLSQL annotations would be lost)\n", FILENAME_OF_ID, id; errors++ }
     if (has_slash && header !~ /endDelimiter:\//) { printf "ERROR %s: changeset %s uses \"/\" but lacks endDelimiter:/\n", FILENAME_OF_ID, id; errors++ }
-    if (FILENAME_OF_ID ~ /\/test-data\// && header !~ /context:dev,test/) { printf "ERROR %s: synthetic-data changeset %s must have context:dev,test\n", FILENAME_OF_ID, id; errors++ }
+    if (FILENAME_OF_ID ~ /\/(test-data|tests)\// && header !~ /context:dev,test/) { printf "ERROR %s: test or synthetic-data changeset %s must have context:dev,test\n", FILENAME_OF_ID, id; errors++ }
     if (has_comment && comment !~ /(FR|NFR)-[A-Z]+-[0-9]+/) {
         if (verbose) printf "WARN  %s: changeset %s comment names no requirement ID\n", FILENAME_OF_ID, id
         warnings++

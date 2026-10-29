@@ -129,3 +129,51 @@ INSERT INTO jm_lookups (lookup_type, lookup_code, meaning, display_seq) VALUES (
 INSERT INTO jm_lookups (lookup_type, lookup_code, meaning, display_seq) VALUES ('DIAGNOSIS_TYPE', 'SECONDARY', 'Secondary', 20);
 INSERT INTO jm_lookups (lookup_type, lookup_code, meaning, display_seq) VALUES ('DIAGNOSIS_TYPE', 'PROVISIONAL', 'Provisional', 30);
 --rollback DELETE FROM jm_lookups WHERE lookup_type = 'DIAGNOSIS_TYPE';
+
+--changeset adetola:seed-lookups-patient-status-001
+--comment: Lookup values for PATIENT_STATUS, matching JM_PATIENTS_STATUS_CK (FR-PAT-01, NFR-PRV-04; DEF-004). Reference data for all environments.
+INSERT INTO jm_lookups (lookup_type, lookup_code, meaning, display_seq) VALUES ('PATIENT_STATUS', 'PENDING', 'Pending verification', 10);
+INSERT INTO jm_lookups (lookup_type, lookup_code, meaning, display_seq) VALUES ('PATIENT_STATUS', 'ACTIVE', 'Active', 20);
+INSERT INTO jm_lookups (lookup_type, lookup_code, meaning, display_seq) VALUES ('PATIENT_STATUS', 'ANONYMISED', 'Anonymised', 30);
+--rollback DELETE FROM jm_lookups WHERE lookup_type = 'PATIENT_STATUS';
+
+--changeset adetola:seed-lookups-channel-001
+--comment: Lookup values for CHANNEL (registration, booking and consent capture), matching the *_CHANNEL/*_VIA checks (FR-PAT-01; DEF-004). Reference data for all environments.
+INSERT INTO jm_lookups (lookup_type, lookup_code, meaning, display_seq) VALUES ('CHANNEL', 'DESK', 'Front desk', 10);
+INSERT INTO jm_lookups (lookup_type, lookup_code, meaning, display_seq) VALUES ('CHANNEL', 'MOBILE', 'Mobile app', 20);
+--rollback DELETE FROM jm_lookups WHERE lookup_type = 'CHANNEL';
+
+--changeset adetola:seed-lookups-consent-type-001
+--comment: Lookup values for CONSENT_TYPE, matching JM_PATIENT_CONSENTS_TYPE_CK (FR-PAT-03; DEF-004). Reference data for all environments.
+INSERT INTO jm_lookups (lookup_type, lookup_code, meaning, display_seq) VALUES ('CONSENT_TYPE', 'PROCESSING', 'Processing of health data', 10);
+INSERT INTO jm_lookups (lookup_type, lookup_code, meaning, display_seq) VALUES ('CONSENT_TYPE', 'SMS_REMINDERS', 'SMS appointment reminders', 20);
+--rollback DELETE FROM jm_lookups WHERE lookup_type = 'CONSENT_TYPE';
+
+--changeset adetola:seed-lookups-prescription-status-001
+--comment: Lookup values for PRESCRIPTION_STATUS, matching JM_PRESCRIPTIONS_STATUS_CK (FR-PHM-03; DEF-004). Reference data for all environments.
+INSERT INTO jm_lookups (lookup_type, lookup_code, meaning, display_seq) VALUES ('PRESCRIPTION_STATUS', 'PENDING', 'Pending', 10);
+INSERT INTO jm_lookups (lookup_type, lookup_code, meaning, display_seq) VALUES ('PRESCRIPTION_STATUS', 'PARTIAL', 'Partly dispensed', 20);
+INSERT INTO jm_lookups (lookup_type, lookup_code, meaning, display_seq) VALUES ('PRESCRIPTION_STATUS', 'DISPENSED', 'Dispensed', 30);
+INSERT INTO jm_lookups (lookup_type, lookup_code, meaning, display_seq) VALUES ('PRESCRIPTION_STATUS', 'CANCELLED', 'Cancelled', 40);
+--rollback DELETE FROM jm_lookups WHERE lookup_type = 'PRESCRIPTION_STATUS';
+
+--changeset adetola:seed-lookups-lab-order-status-001
+--comment: Lookup values for LAB_ORDER_STATUS, matching JM_LAB_ORDERS_STATUS_CK (FR-LAB-02; DEF-004). Reference data for all environments.
+INSERT INTO jm_lookups (lookup_type, lookup_code, meaning, display_seq) VALUES ('LAB_ORDER_STATUS', 'ORDERED', 'Ordered', 10);
+INSERT INTO jm_lookups (lookup_type, lookup_code, meaning, display_seq) VALUES ('LAB_ORDER_STATUS', 'COLLECTED', 'Sample collected', 20);
+INSERT INTO jm_lookups (lookup_type, lookup_code, meaning, display_seq) VALUES ('LAB_ORDER_STATUS', 'RESULTED', 'Result entered', 30);
+INSERT INTO jm_lookups (lookup_type, lookup_code, meaning, display_seq) VALUES ('LAB_ORDER_STATUS', 'RELEASED', 'Released', 40);
+INSERT INTO jm_lookups (lookup_type, lookup_code, meaning, display_seq) VALUES ('LAB_ORDER_STATUS', 'CANCELLED', 'Cancelled', 50);
+--rollback DELETE FROM jm_lookups WHERE lookup_type = 'LAB_ORDER_STATUS';
+
+--changeset adetola:seed-lookups-lab-urgency-001
+--comment: Lookup values for LAB_URGENCY, matching JM_LAB_ORDERS_URGENCY_CK (FR-LAB-01; DEF-004). Reference data for all environments.
+INSERT INTO jm_lookups (lookup_type, lookup_code, meaning, display_seq) VALUES ('LAB_URGENCY', 'ROUTINE', 'Routine', 10);
+INSERT INTO jm_lookups (lookup_type, lookup_code, meaning, display_seq) VALUES ('LAB_URGENCY', 'URGENT', 'Urgent', 20);
+--rollback DELETE FROM jm_lookups WHERE lookup_type = 'LAB_URGENCY';
+
+--changeset adetola:seed-lookups-payment-status-001
+--comment: Lookup values for PAYMENT_STATUS, matching JM_PAYMENTS_STATUS_CK (FR-BIL-02; DEF-004). Reference data for all environments.
+INSERT INTO jm_lookups (lookup_type, lookup_code, meaning, display_seq) VALUES ('PAYMENT_STATUS', 'POSTED', 'Posted', 10);
+INSERT INTO jm_lookups (lookup_type, lookup_code, meaning, display_seq) VALUES ('PAYMENT_STATUS', 'REVERSED', 'Reversed', 20);
+--rollback DELETE FROM jm_lookups WHERE lookup_type = 'PAYMENT_STATUS';
