@@ -177,3 +177,24 @@ INSERT INTO jm_lookups (lookup_type, lookup_code, meaning, display_seq) VALUES (
 INSERT INTO jm_lookups (lookup_type, lookup_code, meaning, display_seq) VALUES ('PAYMENT_STATUS', 'POSTED', 'Posted', 10);
 INSERT INTO jm_lookups (lookup_type, lookup_code, meaning, display_seq) VALUES ('PAYMENT_STATUS', 'REVERSED', 'Reversed', 20);
 --rollback DELETE FROM jm_lookups WHERE lookup_type = 'PAYMENT_STATUS';
+
+--changeset adetola:seed-lookups-pay-method-002
+--comment: HMO is no longer a patient payment method; HMO remittances are recorded on JM_HMO_CLAIMS (FR-BIL-02; DEF-009). Reference data for all environments.
+DELETE FROM jm_lookups WHERE lookup_type = 'PAY_METHOD' AND lookup_code = 'HMO';
+--rollback INSERT INTO jm_lookups (lookup_type, lookup_code, meaning, display_seq) VALUES ('PAY_METHOD', 'HMO', 'HMO', 40);
+
+--changeset adetola:seed-lookups-hmo-claim-status-001
+--comment: Lookup values for HMO_CLAIM_STATUS, matching JM_HMO_CLAIMS_STATUS_CK (FR-BIL-04; DEF-009). Reference data for all environments.
+INSERT INTO jm_lookups (lookup_type, lookup_code, meaning, display_seq) VALUES ('HMO_CLAIM_STATUS', 'DRAFT', 'Draft', 10);
+INSERT INTO jm_lookups (lookup_type, lookup_code, meaning, display_seq) VALUES ('HMO_CLAIM_STATUS', 'SUBMITTED', 'Submitted to HMO', 20);
+INSERT INTO jm_lookups (lookup_type, lookup_code, meaning, display_seq) VALUES ('HMO_CLAIM_STATUS', 'APPROVED', 'Approved', 30);
+INSERT INTO jm_lookups (lookup_type, lookup_code, meaning, display_seq) VALUES ('HMO_CLAIM_STATUS', 'PART_PAID', 'Part paid', 40);
+INSERT INTO jm_lookups (lookup_type, lookup_code, meaning, display_seq) VALUES ('HMO_CLAIM_STATUS', 'PAID', 'Paid', 50);
+INSERT INTO jm_lookups (lookup_type, lookup_code, meaning, display_seq) VALUES ('HMO_CLAIM_STATUS', 'REJECTED', 'Rejected', 60);
+--rollback DELETE FROM jm_lookups WHERE lookup_type = 'HMO_CLAIM_STATUS';
+
+--changeset adetola:seed-lookups-record-status-001
+--comment: Lookup values for RECORD_STATUS, matching every <TABLE>_RECORD_STATUS_CK (NFR-PRV-03; DEF-006). Reference data for all environments.
+INSERT INTO jm_lookups (lookup_type, lookup_code, meaning, display_seq) VALUES ('RECORD_STATUS', 'ACTIVE', 'Active', 10);
+INSERT INTO jm_lookups (lookup_type, lookup_code, meaning, display_seq) VALUES ('RECORD_STATUS', 'DELETED', 'Deleted', 20);
+--rollback DELETE FROM jm_lookups WHERE lookup_type = 'RECORD_STATUS';

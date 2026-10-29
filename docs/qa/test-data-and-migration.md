@@ -2,7 +2,7 @@
 
 JM-DOC-07 Annex A · 28 Oct 2026 · Owner: Adetola · Status: v0.1, maintained with every phase
 
-This register records where test and demo data lives in the `JMEDS` schema, how to recognise it, and what happens to each of the 29 tables when JanastolMeds moves to a production database. Update it whenever a test or data load starts writing to a table it did not write to before.
+This register records where test and demo data lives in the `JMEDS` schema, how to recognise it, and what happens to each of the 30 tables when JanastolMeds moves to a production database. Update it whenever a test or data load starts writing to a table it did not write to before.
 
 ## 1. Decisions
 
@@ -26,7 +26,7 @@ Rules that keep the first row true (enforced by code review and the API-layer QA
 
 1. API packages never `COMMIT`; the caller (APEX page, ORDS handler, job) commits. A test therefore owns the whole transaction and its rollback removes everything.
 2. Audit rows are written in the same transaction as the change (no autonomous transactions), so they roll back with the test too.
-3. A test that must commit (for example testing the scheduler job) is marked `--%rollback(manual)`, cleans up after itself, and is listed in section 6.
+3. A test that must commit (for example testing the scheduler job) is marked `--%rollback(manual)`, cleans up after itself, and is listed in section 6. Since DEF-006 the 18 patient, clinical and financial tables refuse `DELETE` (soft delete only), so a committing test must not write to them at all: it cannot clean up there.
 
 ## 3. Table register
 
@@ -36,7 +36,7 @@ Categories: **R** reference · **C** hospital configuration · **O** opening bal
 | --- | --- | --- | --- |
 | `JM_ROLES` | R | 8 roles from `seed-data/010` (same in every environment) | Created automatically by `lb update`. New roles only by new changeset. |
 | `JM_DEPARTMENTS` | R | 7 departments from `seed-data/010` | Created automatically. Tailor to the hospital by a new changeset, not by editing. |
-| `JM_LOOKUPS` | R | 74 code-list values from `seed-data/020` | Created automatically. |
+| `JM_LOOKUPS` | R | 101 code-list values in 23 types from `seed-data/020` | Created automatically. |
 | `JM_ICD10_CODES` | R | 200 outpatient codes from `seed-data/030` | Created automatically. Clinician review of the subset before go-live (see CLAUDE.md). |
 | `JM_STAFF` | C | Synthetic doctors, nurses, pharmacists, lab scientists, cashiers for each role | **Not migrated.** Real staff loaded at go-live (HR list, verified licence numbers). |
 | `JM_STAFF_ROLES` | C | Role assignments for the synthetic staff | **Not migrated.** Assigned for real staff at go-live; reviewed by the hospital manager. |
@@ -59,16 +59,17 @@ Categories: **R** reference · **C** hospital configuration · **O** opening bal
 | `JM_DISPENSES` | T | Dispensing against synthetic batches | **Never migrated.** |
 | `JM_LAB_ORDERS` | T | Orders through every workflow status | **Never migrated.** |
 | `JM_LAB_RESULTS` | T | Results, normal and abnormal, verified and unverified | **Never migrated.** |
-| `JM_INVOICES` | T | Cash and HMO invoices, open, part-paid, paid, void | **Never migrated.** Financial history starts at go-live. |
+| `JM_INVOICES` | T | Cash and HMO invoices, open, part-paid, paid, void; HMO amount paid | **Never migrated.** Financial history starts at go-live. |
 | `JM_INVOICE_LINES` | T | Charges from services, lab and drugs | **Never migrated.** |
-| `JM_PAYMENTS` | T | Payments by every method, including reversals | **Never migrated.** |
+| `JM_PAYMENTS` | T | Patient payments by every method, including reversals | **Never migrated.** |
+| `JM_HMO_CLAIMS` | T | HMO claims in every status, including rejected and resubmitted ones | **Never migrated.** Outstanding HMO receivables at go-live are carried in the finance system, not in demo claims. |
 | `JM_AUDIT_LOG` | A | Every view and change made during demos and manual tests | **Never migrated.** Starts empty; the hash chain begins at its first production row. Demo rows cannot be deleted (append-only by design), which is another reason production is a fresh build. |
 
-Summary: 4 reference tables move automatically; 3 catalogues (`JM_SERVICES`, `JM_DRUGS`, `JM_LAB_TESTS`) may be promoted after review; the other 22 tables start empty in production or are loaded from real sources.
+Summary: 4 reference tables move automatically; 3 catalogues (`JM_SERVICES`, `JM_DRUGS`, `JM_LAB_TESTS`) may be promoted after review; the other 23 tables start empty in production or are loaded from real sources.
 
 ## 4. Sequences and business numbers
 
-Sequences (`JM_MRN_SEQ`, `JM_APPOINTMENT_SEQ`, `JM_VISIT_SEQ`, `JM_LAB_ORDER_SEQ`, `JM_INVOICE_SEQ`, `JM_RECEIPT_SEQ`) and identity columns start at 1 in production because the schema is built fresh. Gaps in demo numbering caused by rolled-back tests are expected and harmless.
+Sequences (`JM_MRN_SEQ`, `JM_APPOINTMENT_SEQ`, `JM_VISIT_SEQ`, `JM_LAB_ORDER_SEQ`, `JM_INVOICE_SEQ`, `JM_RECEIPT_SEQ`, `JM_HMO_CLAIM_SEQ`) and identity columns start at 1 in production because the schema is built fresh. Gaps in demo numbering caused by rolled-back tests are expected and harmless.
 
 **Open decision for legacy migration** (only if the hospital has an existing system): keep legacy MRNs in a separate column, or issue new `JM-YYYY-NNNNNN` MRNs and keep a mapping table. Decide before any legacy load is designed.
 
@@ -108,3 +109,4 @@ Anything a test leaves behind on purpose (`--%rollback(manual)` tests, scheduler
 | Date | Change |
 | --- | --- |
 | 28 Oct 2026 | v0.1: decisions D1–D4, table register for all 29 tables, production procedure. |
+| 29 Oct 2026 | v0.2: `JM_HMO_CLAIMS` added (DEF-009); soft delete on 18 tables (DEF-006): synthetic and demo rows in those tables can no longer be removed by `DELETE`, which confirms decision D2 (production is always a fresh build, never a cleaned copy of the demo). Lookup count corrected to 101. |

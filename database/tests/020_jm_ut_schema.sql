@@ -51,12 +51,15 @@ IS
 
     --%test(Status check constraints and their JM_LOOKUPS lists hold the same codes)
     PROCEDURE lookups_match_checks;
+
+    --%test(Exactly the patient, clinical and financial tables have the soft-delete columns, checks and record guard (DEF-006))
+    PROCEDURE soft_delete_columns_standard;
 END jm_ut_schema;
 /
 --rollback DROP PACKAGE jm_ut_schema;
 
 --changeset adetola:test-020-schema-body endDelimiter:/ runOnChange:true stripComments:false context:dev,test
---comment: Schema conformance suite body (NFR-MNT-01, NFR-MNT-02). Test environments only.
+--comment: Schema conformance suite body, including the soft-delete convention (NFR-MNT-01, NFR-MNT-02; DEF-006). Test environments only.
 CREATE OR REPLACE PACKAGE BODY jm_ut_schema
 IS
     c_audit_log CONSTANT VARCHAR2(30) := 'JM_AUDIT_LOG';
@@ -263,7 +266,7 @@ IS
              WHERE table_name LIKE 'JM\_%' ESCAPE '\'
                AND (column_name IN ('PRICE', 'UNIT_PRICE', 'COST_PRICE', 'AMOUNT')
                     OR column_name LIKE '%\_AMOUNT' ESCAPE '\'
-                    OR column_name = 'AMOUNT_PAID')
+                    OR column_name LIKE '%AMOUNT\_PAID' ESCAPE '\')
                AND column_name <> 'LINE_AMOUNT'
                AND NOT (data_type = 'NUMBER' AND data_precision = 12 AND data_scale = 2);
         ut.expect(l_offenders).to_be_empty();
@@ -319,7 +322,12 @@ IS
                 SELECT 'JM_LAB_ORDERS_URGENCY_CK',            'LAB_URGENCY'         FROM dual UNION ALL
                 SELECT 'JM_INVOICES_STATUS_CK',               'INVOICE_STATUS'      FROM dual UNION ALL
                 SELECT 'JM_PAYMENTS_METHOD_CK',               'PAY_METHOD'          FROM dual UNION ALL
-                SELECT 'JM_PAYMENTS_STATUS_CK',               'PAYMENT_STATUS'      FROM dual),
+                SELECT 'JM_PAYMENTS_STATUS_CK',               'PAYMENT_STATUS'      FROM dual UNION ALL
+                SELECT 'JM_HMO_CLAIMS_STATUS_CK',             'HMO_CLAIM_STATUS'    FROM dual UNION ALL
+                -- every soft-delete table carries the same RECORD_STATUS list (DEF-006)
+                SELECT constraint_name,                       'RECORD_STATUS'
+                  FROM user_constraints
+                 WHERE constraint_name LIKE 'JM\_%\_RECORD\_STATUS\_CK' ESCAPE '\'),
             cons AS (
                 -- read the dictionary once; joining it inside the row generator is very slow
                 SELECT /*+ MATERIALIZE */ c.constraint_name, c.search_condition_vc AS cond
@@ -351,6 +359,59 @@ IS
              WHERE NOT EXISTS (SELECT 1 FROM cons c WHERE c.constraint_name = m.constraint_name);
         ut.expect(l_offenders).to_be_empty();
     END lookups_match_checks;
+
+    PROCEDURE soft_delete_columns_standard
+    IS
+        l_offenders SYS_REFCURSOR;
+    BEGIN
+        -- Reference and catalogue tables use ACTIVE_FLAG instead; addenda and the audit log are never changed at all.
+        OPEN l_offenders FOR
+            WITH soft_delete_tables (table_name) AS (
+                SELECT COLUMN_VALUE FROM TABLE(sys.odcivarchar2list(
+                    'JM_PATIENTS', 'JM_PATIENT_CONSENTS', 'JM_PATIENT_ALLERGIES', 'JM_PATIENT_ACCOUNTS',
+                    'JM_DOCTOR_SCHEDULES', 'JM_APPOINTMENTS', 'JM_VISITS', 'JM_VITALS', 'JM_VISIT_DIAGNOSES',
+                    'JM_DRUG_BATCHES', 'JM_PRESCRIPTIONS', 'JM_DISPENSES', 'JM_LAB_ORDERS', 'JM_LAB_RESULTS',
+                    'JM_INVOICES', 'JM_INVOICE_LINES', 'JM_PAYMENTS', 'JM_HMO_CLAIMS'))),
+            expected (column_name, data_type, char_length, nullable) AS (
+                SELECT 'RECORD_STATUS', 'VARCHAR2', 10, 'N' FROM dual UNION ALL
+                SELECT 'DELETED_ON',    'TIMESTAMP(6) WITH LOCAL TIME ZONE', 0, 'Y' FROM dual UNION ALL
+                SELECT 'DELETED_BY',    'VARCHAR2', 100, 'Y' FROM dual UNION ALL
+                SELECT 'DELETE_REASON', 'VARCHAR2', 300, 'Y' FROM dual)
+            SELECT s.table_name, e.column_name,
+                   NVL2(c.column_name, c.data_type || ' ' || c.char_length || ' ' || c.nullable, 'missing') AS problem
+              FROM soft_delete_tables s
+             CROSS JOIN expected e
+              LEFT JOIN user_tab_columns c ON c.table_name = s.table_name AND c.column_name = e.column_name
+             WHERE c.column_name IS NULL
+                OR c.data_type <> e.data_type
+                OR c.char_length <> e.char_length
+                OR c.nullable <> e.nullable
+            UNION ALL
+            SELECT c.table_name, 'RECORD_STATUS', 'not expected on this table'
+              FROM user_tab_columns c
+             WHERE c.table_name LIKE 'JM\_%' ESCAPE '\'
+               AND c.column_name = 'RECORD_STATUS'
+               AND c.table_name NOT IN (SELECT table_name FROM soft_delete_tables)
+            UNION ALL
+            SELECT s.table_name, s.table_name || x.suffix, 'missing or not enabled'
+              FROM soft_delete_tables s
+             CROSS JOIN (SELECT '_RECORD_STATUS_CK' AS suffix FROM dual UNION ALL
+                         SELECT '_DELETED_CK' FROM dual) x
+             WHERE NOT EXISTS (SELECT 1 FROM user_constraints k
+                                WHERE k.constraint_name = s.table_name || x.suffix
+                                  AND k.table_name = s.table_name
+                                  AND k.status = 'ENABLED')
+            UNION ALL
+            SELECT s.table_name, s.table_name || '_RECORD_GUARD', 'missing, disabled or wrong events'
+              FROM soft_delete_tables s
+             WHERE NOT EXISTS (SELECT 1 FROM user_triggers g
+                                WHERE g.trigger_name = s.table_name || '_RECORD_GUARD'
+                                  AND g.table_name = s.table_name
+                                  AND g.status = 'ENABLED'
+                                  AND g.trigger_type = 'COMPOUND'
+                                  AND g.triggering_event = 'UPDATE OR DELETE');
+        ut.expect(l_offenders).to_be_empty();
+    END soft_delete_columns_standard;
 END jm_ut_schema;
 /
 --rollback DROP PACKAGE BODY jm_ut_schema;

@@ -2,14 +2,14 @@
 
 Oct 27, 2026 · @Adetola
 
-The JanastolMeds Release 1.0 schema has 29 tables in 7 modules, all in one schema (JMEDS), with the patient visit as the hub that links clinical, pharmacy, lab and billing data. This document implements the requirements in JM-DOC-01 and is the source for the Liquibase changelogs in database/changelogs/.
+The JanastolMeds Release 1.0 schema has 30 tables in 7 modules, all in one schema (JMEDS), with the patient visit as the hub that links clinical, pharmacy, lab and billing data. This document implements the requirements in JM-DOC-01 and is the source for the Liquibase changelogs in database/changelogs/.
 
 ## Document control
 
 | Item        | Detail                          |
 |-------------|---------------------------------|
 | Document ID | JM-DOC-03                       |
-| Version     | 0.2 (Draft)                     |
+| Version     | 0.3 (Draft)                     |
 | Owner       | Adetola                         |
 | Depends on  | JM-DOC-01 Project Charter & SRS |
 
@@ -29,7 +29,7 @@ The JanastolMeds Release 1.0 schema has 29 tables in 7 modules, all in one schem
 | Dates            | DATE for calendar dates; TIMESTAMP WITH LOCAL TIME ZONE for events                     | CHECKED_IN_AT                |
 | Flags            | VARCHAR2(1) with check IN ('Y','N')                                                    | ACTIVE_FLAG                  |
 | Status codes     | Short codes checked against a list; labels come from JM_LOOKUPS                        | STATUS = 'BOOKED'            |
-| Deletes          | Soft delete for master data (ACTIVE_FLAG = 'N'); clinical records are never deleted    | —                            |
+| Deletes          | Nothing is physically deleted. Master data: ACTIVE_FLAG = 'N'. Patient, clinical and financial records: soft delete (RECORD_STATUS = 'DELETED', below) | —                            |
 
 **Standard audit columns** on every table, set by a shared trigger template:
 
@@ -42,6 +42,23 @@ The JanastolMeds Release 1.0 schema has 29 tables in 7 modules, all in one schem
 | ROW_VERSION | NUMBER                         | Incremented on update, used for optimistic locking by APEX and the API |
 
 These five columns are not repeated in the data dictionary below.
+
+**Standard soft-delete columns** (decided 29 Oct 2026, DEF-006) on the 18 patient, clinical and financial tables: JM_PATIENTS, JM_PATIENT_CONSENTS, JM_PATIENT_ALLERGIES, JM_PATIENT_ACCOUNTS, JM_DOCTOR_SCHEDULES, JM_APPOINTMENTS, JM_VISITS, JM_VITALS, JM_VISIT_DIAGNOSES, JM_DRUG_BATCHES, JM_PRESCRIPTIONS, JM_DISPENSES, JM_LAB_ORDERS, JM_LAB_RESULTS, JM_INVOICES, JM_INVOICE_LINES, JM_PAYMENTS, JM_HMO_CLAIMS.
+
+| Column        | Type                           | Null | Rule                                                                  |
+|---------------|--------------------------------|------|-----------------------------------------------------------------------|
+| RECORD_STATUS | VARCHAR2(10 CHAR)              | N    | ACTIVE / DELETED; default ACTIVE                                      |
+| DELETED_ON    | TIMESTAMP WITH LOCAL TIME ZONE | Y    | Set by the trigger when the record is deleted                         |
+| DELETED_BY    | VARCHAR2(100 CHAR)             | Y    | Set by the trigger (JM_CURRENT_USER); a caller's value is overruled   |
+| DELETE_REASON | VARCHAR2(300 CHAR)             | Y    | Required when deleted (\<TABLE\>\_DELETED_CK); empty while active     |
+
+- A \<TABLE\>\_RECORD_GUARD trigger refuses every physical DELETE (ORA-20030), stamps DELETED_ON and DELETED_BY, and makes a deleted record final: it cannot be changed or restored (ORA-20031).
+- The applications never show deleted records: JM\_\*\_API queries and the JM_V\_\* views filter RECORD_STATUS = 'ACTIVE'. The rows stay in the database and the audit log for retention and investigation.
+- Business keys that a corrected record must reuse (one diagnosis per code per visit, one result per lab order, one charge per source, one batch number per drug, one account per patient and login, one visit per appointment, one live invoice per visit, a doctor's slot) are unique indexes over ACTIVE rows only. Generated numbers (MRN, visit, invoice, receipt, claim numbers) stay unique for ever.
+- The visit lock still applies: a locked visit and its vitals and diagnoses cannot be soft-deleted.
+- JM_VISIT_ADDENDA and JM_AUDIT_LOG are insert-only (\<TABLE\>\_NO_CHANGE triggers, ORA-20013 and ORA-20020): they are the record of change and cannot be edited or deleted at all.
+
+These four columns are not repeated in the data dictionary below.
 
 ## 2. Entity catalogue
 
@@ -77,7 +94,8 @@ Every table traces to at least one SRS requirement; a table with no requirement 
 | Billing      | JM_SERVICES          | Price list for consultations and other chargeable services             | FR-BIL-01             |
 | Billing      | JM_INVOICES          | One invoice per visit with HMO and patient portions                    | FR-BIL-01, 03, 04     |
 | Billing      | JM_INVOICE_LINES     | Individual charges, each traced to its source record                   | FR-BIL-01             |
-| Billing      | JM_PAYMENTS          | Payments and part-payments against an invoice                          | FR-BIL-02             |
+| Billing      | JM_PAYMENTS          | Patient payments and part-payments against an invoice                  | FR-BIL-02             |
+| Billing      | JM_HMO_CLAIMS        | Claim of an invoice's HMO share, its approval and remittance           | FR-BIL-03, 04         |
 
 ## 3. Entity relationship diagram
 
@@ -480,7 +498,8 @@ Null column: **N** = NOT NULL, **Y** = nullable. Audit columns from section 1 ar
 | TOTAL_AMOUNT   | NUMBER(12,2)      | N    | Sum of lines; maintained by API            |
 | HMO_AMOUNT     | NUMBER(12,2)      | N    | Default 0                                  |
 | PATIENT_AMOUNT | NUMBER(12,2)      | N    | TOTAL − HMO                                |
-| AMOUNT_PAID    | NUMBER(12,2)      | N    | Default 0                                  |
+| AMOUNT_PAID    | NUMBER(12,2)      | N    | Paid by the patient; default 0; ≤ PATIENT_AMOUNT |
+| HMO_AMOUNT_PAID | NUMBER(12,2)     | N    | Remitted by the HMO (JM_HMO_CLAIMS); default 0; ≤ HMO_AMOUNT |
 | STATUS         | VARCHAR2(12 CHAR) | N    | OPEN / PART_PAID / PAID / VOID             |
 
 **JM_INVOICE_LINES**
@@ -505,11 +524,29 @@ Null column: **N** = NOT NULL, **Y** = nullable. Audit columns from section 1 ar
 | RECEIPT_NO  | VARCHAR2(20 CHAR)              | N    | UK                                    |
 | INVOICE_ID  | NUMBER                         | N    | FK → JM_INVOICES                      |
 | AMOUNT      | NUMBER(12,2)                   | N    | \> 0                                  |
-| PAY_METHOD  | VARCHAR2(10 CHAR)              | N    | CASH / TRANSFER / POS / HMO / GATEWAY |
+| PAY_METHOD  | VARCHAR2(10 CHAR)              | N    | CASH / TRANSFER / POS / GATEWAY (HMO money goes to JM_HMO_CLAIMS) |
 | REFERENCE   | VARCHAR2(60 CHAR)              | Y    | Bank or POS reference                 |
 | RECEIVED_BY | NUMBER                         | Y    | FK → JM_STAFF (null for gateway)      |
 | PAID_AT     | TIMESTAMP WITH LOCAL TIME ZONE | N    |                                       |
 | STATUS      | VARCHAR2(10 CHAR)              | N    | POSTED / REVERSED                     |
+
+**JM_HMO_CLAIMS** (added in v0.3, DEF-009: HMO settlement is tracked separately from patient payments)
+
+| Column           | Type                           | Null | Notes                                                                   |
+|------------------|--------------------------------|------|-------------------------------------------------------------------------|
+| CLAIM_ID         | NUMBER                         | N    | PK, identity                                                            |
+| CLAIM_NO         | VARCHAR2(20 CHAR)              | N    | UK, e.g. CLM-2026-000123 (JM_HMO_CLAIM_SEQ)                             |
+| INVOICE_ID       | NUMBER                         | N    | FK → JM_INVOICES; one live claim per invoice (rejected/deleted excluded) |
+| HMO_PLAN_ID      | NUMBER                         | N    | FK → JM_HMO_PLANS, copied from the invoice                              |
+| CLAIM_AMOUNT     | NUMBER(12,2)                   | N    | \> 0; the invoice's HMO_AMOUNT when submitted                           |
+| APPROVED_AMOUNT  | NUMBER(12,2)                   | Y    | Set when the HMO decides; 0 … CLAIM_AMOUNT                              |
+| PAID_AMOUNT      | NUMBER(12,2)                   | N    | Remitted so far; default 0; ≤ APPROVED_AMOUNT                           |
+| STATUS           | VARCHAR2(12 CHAR)              | N    | DRAFT / SUBMITTED / APPROVED / PART_PAID / PAID / REJECTED              |
+| SUBMITTED_AT     | TIMESTAMP WITH LOCAL TIME ZONE | Y    | Required once past DRAFT                                                |
+| DECIDED_AT       | TIMESTAMP WITH LOCAL TIME ZONE | Y    | Required once APPROVED, PART_PAID, PAID or REJECTED                     |
+| PAID_AT          | TIMESTAMP WITH LOCAL TIME ZONE | Y    | Last remittance                                                         |
+| REMITTANCE_REF   | VARCHAR2(60 CHAR)              | Y    | HMO's remittance advice or bank reference                               |
+| REJECTION_REASON | VARCHAR2(300 CHAR)             | Y    | Required when REJECTED; a rejected claim can be resubmitted as a new claim |
 
 ## 5. Constraints, business rules and indexes
 
@@ -532,6 +569,10 @@ Simple rules are declarative constraints so no client can bypass them; rules tha
 | Patients see only released results              | JM_LAB_API, ORDS handlers                           | Filter STATUS = RELEASED and VERIFIED_AT not null                                                  | FR-LAB-03, 04 |
 | Each source charged once                        | JM_INVOICE_LINES                                    | Unique (SOURCE_TYPE, SOURCE_ID)                                                                    | FR-BIL-01     |
 | Payments cannot exceed balance                  | JM_BILLING_API.record_payment                       | Locks invoice row, checks AMOUNT ≤ PATIENT_AMOUNT − AMOUNT_PAID                                    | FR-BIL-02     |
+| HMO money is separate from patient money        | JM_PAYMENTS, JM_HMO_CLAIMS, JM_INVOICES             | PAY_METHOD excludes HMO; HMO remittances update JM_HMO_CLAIMS.PAID_AMOUNT and JM_INVOICES.HMO_AMOUNT_PAID (≤ HMO_AMOUNT) | FR-BIL-03, 04 |
+| One live claim per invoice                      | JM_HMO_CLAIMS                                       | Unique index on INVOICE_ID where RECORD_STATUS = ACTIVE and STATUS ≠ REJECTED; claim amounts and timestamps checked | FR-BIL-04     |
+| One live invoice per visit                      | JM_INVOICES                                         | Unique index on VISIT_ID where RECORD_STATUS = ACTIVE and STATUS ≠ VOID, so a voided invoice can be replaced | FR-BIL-01     |
+| Records are never deleted                       | \<TABLE\>\_RECORD_GUARD on 18 tables; \<TABLE\>\_NO_CHANGE on addenda and audit log | DELETE refused; soft delete stamped and final; see section 1                     | NFR-PRV-03, FR-CLN-04 |
 | All flags and statuses valid                    | Every table                                         | Check constraints listing allowed values                                                           | All           |
 
 **Indexes** beyond primary and unique keys:
@@ -548,7 +589,7 @@ Simple rules are declarative constraints so no client can bypass them; rules tha
 
 - JM_AUDIT_LOG (PATIENT_ID, EVENT_AT) and (ACTOR, EVENT_AT) for DPO access reports.
 
-**Sequences** for business numbers: JM_MRN_SEQ, JM_APPOINTMENT_SEQ, JM_VISIT_SEQ, JM_LAB_ORDER_SEQ, JM_INVOICE_SEQ, JM_RECEIPT_SEQ. Numbers are formatted in the API (for example 'JM-'\|\|TO_CHAR(SYSDATE,'YYYY')\|\|'-'\|\|LPAD(JM_MRN_SEQ.NEXTVAL,6,'0')).
+**Sequences** for business numbers: JM_MRN_SEQ, JM_APPOINTMENT_SEQ, JM_VISIT_SEQ, JM_LAB_ORDER_SEQ, JM_INVOICE_SEQ, JM_RECEIPT_SEQ, JM_HMO_CLAIM_SEQ. Numbers are formatted in the API (for example 'JM-'\|\|TO_CHAR(SYSDATE,'YYYY')\|\|'-'\|\|LPAD(JM_MRN_SEQ.NEXTVAL,6,'0')).
 
 ## 6. Security and privacy design
 
@@ -621,7 +662,9 @@ database/
 │ ├── 070_billing_tables.sql  
 │ ├── 080_sequences_and_indexes.sql  
 │ ├── 090_audit_triggers.sql Standard audit-column trigger per table  
-│ └── 100_scheduler_jobs.sql Visit auto-lock, audit-chain verification  
+│ ├── 100_scheduler_jobs.sql Visit auto-lock, audit-chain verification  
+│ ├── 110_hmo_settlement.sql JM_HMO_CLAIMS, HMO_AMOUNT_PAID, patient-only payment methods (DEF-009)  
+│ └── 120_soft_delete.sql Soft-delete columns, record guards, insert-only addenda, active-row unique keys (DEF-006)  
 ├── packages/ JM\_\*\_API specs and bodies (runOnChange)  
 ├── ords/ REST module definitions (runOnChange)  
 └── seed-data/ Lookups, roles, ICD-10 subset, synthetic patients

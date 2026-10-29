@@ -30,7 +30,7 @@ END jm_ut_reference;
 --rollback DROP PACKAGE jm_ut_reference;
 
 --changeset adetola:test-050-reference-body endDelimiter:/ runOnChange:true stripComments:false context:dev,test
---comment: Reference data and scheduler suite body (FR-ADM-01, FR-CLN-03, FR-CLN-04). Test environments only.
+--comment: Reference data and scheduler suite body, including the DEF-006/DEF-009 lookups (FR-ADM-01, FR-CLN-03, FR-CLN-04). Test environments only.
 CREATE OR REPLACE PACKAGE BODY jm_ut_reference
 IS
     PROCEDURE roles_seeded
@@ -68,9 +68,9 @@ IS
             SELECT COLUMN_VALUE AS lookup_type
               FROM TABLE(sys.odcivarchar2list(
                      'ALLERGY_SEVERITY', 'APT_STATUS', 'BLOOD_GROUP', 'CHANNEL', 'CONSENT_TYPE', 'DIAGNOSIS_TYPE',
-                     'DOSAGE_FORM', 'FREQUENCY', 'GENDER', 'GENOTYPE', 'INVOICE_STATUS', 'LAB_ORDER_STATUS',
-                     'LAB_URGENCY', 'PATIENT_STATUS', 'PAYMENT_STATUS', 'PAY_METHOD', 'PRESCRIPTION_STATUS',
-                     'RELATIONSHIP', 'SAMPLE_TYPE', 'TRIAGE', 'VISIT_STATUS'))
+                     'DOSAGE_FORM', 'FREQUENCY', 'GENDER', 'GENOTYPE', 'HMO_CLAIM_STATUS', 'INVOICE_STATUS',
+                     'LAB_ORDER_STATUS', 'LAB_URGENCY', 'PATIENT_STATUS', 'PAYMENT_STATUS', 'PAY_METHOD',
+                     'PRESCRIPTION_STATUS', 'RECORD_STATUS', 'RELATIONSHIP', 'SAMPLE_TYPE', 'TRIAGE', 'VISIT_STATUS'))
             MINUS
             SELECT lookup_type FROM jm_lookups;
         ut.expect(l_missing).to_be_empty();

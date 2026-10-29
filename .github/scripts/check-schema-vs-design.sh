@@ -2,7 +2,7 @@
 # JanastolMeds: compare the live JMEDS columns with the JM-DOC-03 data dictionary (section 4).
 # Input: a file of TABLE|COLUMN|TYPE|NULL lines produced by database/qa/schema_columns.sql.
 # Output: every column that is missing, extra, or differs in type or nullability; exit 1 if any.
-# The five standard audit columns are excluded on both sides (JM-DOC-03 section 1 covers them).
+# The standard audit and soft-delete columns are excluded on both sides (JM-DOC-03 section 1 covers them).
 set -euo pipefail
 
 db_file="${1:?usage: check-schema-vs-design.sh <db-columns-file> [design-doc]}"

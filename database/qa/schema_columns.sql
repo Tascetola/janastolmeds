@@ -1,5 +1,6 @@
 -- JanastolMeds QA: list JMEDS columns as TABLE|COLUMN|TYPE|NULL in JM-DOC-03 notation,
--- for .github/scripts/check-schema-vs-design.sh. Standard audit columns are excluded.
+-- for .github/scripts/check-schema-vs-design.sh. Standard audit and soft-delete columns are excluded
+-- (JM-DOC-03 section 1; jm_ut_schema checks their types).
 set heading off feedback off pagesize 0 linesize 300 trimspool on
 select c.table_name || '|' || c.column_name || '|' ||
        case
@@ -15,5 +16,6 @@ select c.table_name || '|' || c.column_name || '|' ||
   from user_tab_columns c
   join user_tables t on t.table_name = c.table_name
  where c.table_name like 'JM\_%' escape '\'
-   and c.column_name not in ('CREATED_BY', 'CREATED_ON', 'UPDATED_BY', 'UPDATED_ON', 'ROW_VERSION')
+   and c.column_name not in ('CREATED_BY', 'CREATED_ON', 'UPDATED_BY', 'UPDATED_ON', 'ROW_VERSION',
+                             'RECORD_STATUS', 'DELETED_ON', 'DELETED_BY', 'DELETE_REASON')
  order by c.table_name, c.column_id;
