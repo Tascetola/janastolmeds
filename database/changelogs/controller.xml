@@ -31,7 +31,8 @@
     <include file="../seed-data/020_lookups.sql"           relativeToChangelogFile="true"/>
     <include file="../seed-data/030_icd10_codes.sql"       relativeToChangelogFile="true"/>
 
-    <!-- Next phase: ../packages (JM_*_API, runOnChange) and ../ords (REST modules) -->
+    <!-- PL/SQL API layer (JM_*_API, runOnChange), all environments. Next: ../ords (REST modules) -->
+    <include file="../packages/jm_ctx_api.sql"             relativeToChangelogFile="true"/>
 
     <!-- utPLSQL test suites, dev and test environments only (context:dev,test on every changeset).
          Needs utPLSQL in the database: see ../admin/01_install_utplsql.md -->
@@ -40,4 +41,5 @@
     <include file="../tests/030_jm_ut_constraints.sql" relativeToChangelogFile="true"/>
     <include file="../tests/040_jm_ut_triggers.sql"    relativeToChangelogFile="true"/>
     <include file="../tests/050_jm_ut_reference.sql"   relativeToChangelogFile="true"/>
+    <include file="../tests/060_jm_ut_ctx_api.sql"     relativeToChangelogFile="true"/>
 </databaseChangeLog>

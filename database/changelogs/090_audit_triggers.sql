@@ -1,13 +1,13 @@
 --liquibase formatted sql
 
 --changeset adetola:090-01 endDelimiter:/ runOnChange:true stripComments:false
---comment: JM_CURRENT_USER: who is acting, for audit columns (APEX user, API context, or DB user)
+--comment: JM_CURRENT_USER: who is acting, for audit columns (API context set by JM_CTX_API, else APEX user, else DB user; DEF-008)
 CREATE OR REPLACE FUNCTION jm_current_user RETURN VARCHAR2
 IS
 BEGIN
     RETURN SUBSTR(COALESCE(
-               SYS_CONTEXT('APEX$SESSION', 'APP_USER'),
                SYS_CONTEXT('JM_CTX', 'ACTOR'),
+               SYS_CONTEXT('APEX$SESSION', 'APP_USER'),
                SYS_CONTEXT('USERENV', 'SESSION_USER')), 1, 100);
 END jm_current_user;
 /
@@ -20,8 +20,8 @@ BEFORE INSERT OR UPDATE ON jm_departments
 FOR EACH ROW
 BEGIN
     IF INSERTING THEN
-        :new.created_by  := NVL(:new.created_by, jm_current_user);
-        :new.created_on  := NVL(:new.created_on, SYSTIMESTAMP);
+        :new.created_by  := jm_current_user;
+        :new.created_on  := SYSTIMESTAMP;
         :new.row_version := 1;
     ELSE
         :new.created_by  := :old.created_by;
@@ -41,8 +41,8 @@ BEFORE INSERT OR UPDATE ON jm_staff
 FOR EACH ROW
 BEGIN
     IF INSERTING THEN
-        :new.created_by  := NVL(:new.created_by, jm_current_user);
-        :new.created_on  := NVL(:new.created_on, SYSTIMESTAMP);
+        :new.created_by  := jm_current_user;
+        :new.created_on  := SYSTIMESTAMP;
         :new.row_version := 1;
     ELSE
         :new.created_by  := :old.created_by;
@@ -62,8 +62,8 @@ BEFORE INSERT OR UPDATE ON jm_roles
 FOR EACH ROW
 BEGIN
     IF INSERTING THEN
-        :new.created_by  := NVL(:new.created_by, jm_current_user);
-        :new.created_on  := NVL(:new.created_on, SYSTIMESTAMP);
+        :new.created_by  := jm_current_user;
+        :new.created_on  := SYSTIMESTAMP;
         :new.row_version := 1;
     ELSE
         :new.created_by  := :old.created_by;
@@ -83,8 +83,8 @@ BEFORE INSERT OR UPDATE ON jm_staff_roles
 FOR EACH ROW
 BEGIN
     IF INSERTING THEN
-        :new.created_by  := NVL(:new.created_by, jm_current_user);
-        :new.created_on  := NVL(:new.created_on, SYSTIMESTAMP);
+        :new.created_by  := jm_current_user;
+        :new.created_on  := SYSTIMESTAMP;
         :new.row_version := 1;
     ELSE
         :new.created_by  := :old.created_by;
@@ -104,8 +104,8 @@ BEFORE INSERT OR UPDATE ON jm_lookups
 FOR EACH ROW
 BEGIN
     IF INSERTING THEN
-        :new.created_by  := NVL(:new.created_by, jm_current_user);
-        :new.created_on  := NVL(:new.created_on, SYSTIMESTAMP);
+        :new.created_by  := jm_current_user;
+        :new.created_on  := SYSTIMESTAMP;
         :new.row_version := 1;
     ELSE
         :new.created_by  := :old.created_by;
@@ -125,8 +125,8 @@ BEFORE INSERT OR UPDATE ON jm_hmo_plans
 FOR EACH ROW
 BEGIN
     IF INSERTING THEN
-        :new.created_by  := NVL(:new.created_by, jm_current_user);
-        :new.created_on  := NVL(:new.created_on, SYSTIMESTAMP);
+        :new.created_by  := jm_current_user;
+        :new.created_on  := SYSTIMESTAMP;
         :new.row_version := 1;
     ELSE
         :new.created_by  := :old.created_by;
@@ -146,8 +146,8 @@ BEFORE INSERT OR UPDATE ON jm_patients
 FOR EACH ROW
 BEGIN
     IF INSERTING THEN
-        :new.created_by  := NVL(:new.created_by, jm_current_user);
-        :new.created_on  := NVL(:new.created_on, SYSTIMESTAMP);
+        :new.created_by  := jm_current_user;
+        :new.created_on  := SYSTIMESTAMP;
         :new.row_version := 1;
     ELSE
         :new.created_by  := :old.created_by;
@@ -167,8 +167,8 @@ BEFORE INSERT OR UPDATE ON jm_patient_consents
 FOR EACH ROW
 BEGIN
     IF INSERTING THEN
-        :new.created_by  := NVL(:new.created_by, jm_current_user);
-        :new.created_on  := NVL(:new.created_on, SYSTIMESTAMP);
+        :new.created_by  := jm_current_user;
+        :new.created_on  := SYSTIMESTAMP;
         :new.row_version := 1;
     ELSE
         :new.created_by  := :old.created_by;
@@ -188,8 +188,8 @@ BEFORE INSERT OR UPDATE ON jm_patient_allergies
 FOR EACH ROW
 BEGIN
     IF INSERTING THEN
-        :new.created_by  := NVL(:new.created_by, jm_current_user);
-        :new.created_on  := NVL(:new.created_on, SYSTIMESTAMP);
+        :new.created_by  := jm_current_user;
+        :new.created_on  := SYSTIMESTAMP;
         :new.row_version := 1;
     ELSE
         :new.created_by  := :old.created_by;
@@ -209,8 +209,8 @@ BEFORE INSERT OR UPDATE ON jm_patient_accounts
 FOR EACH ROW
 BEGIN
     IF INSERTING THEN
-        :new.created_by  := NVL(:new.created_by, jm_current_user);
-        :new.created_on  := NVL(:new.created_on, SYSTIMESTAMP);
+        :new.created_by  := jm_current_user;
+        :new.created_on  := SYSTIMESTAMP;
         :new.row_version := 1;
     ELSE
         :new.created_by  := :old.created_by;
@@ -230,8 +230,8 @@ BEFORE INSERT OR UPDATE ON jm_doctor_schedules
 FOR EACH ROW
 BEGIN
     IF INSERTING THEN
-        :new.created_by  := NVL(:new.created_by, jm_current_user);
-        :new.created_on  := NVL(:new.created_on, SYSTIMESTAMP);
+        :new.created_by  := jm_current_user;
+        :new.created_on  := SYSTIMESTAMP;
         :new.row_version := 1;
     ELSE
         :new.created_by  := :old.created_by;
@@ -251,8 +251,8 @@ BEFORE INSERT OR UPDATE ON jm_appointments
 FOR EACH ROW
 BEGIN
     IF INSERTING THEN
-        :new.created_by  := NVL(:new.created_by, jm_current_user);
-        :new.created_on  := NVL(:new.created_on, SYSTIMESTAMP);
+        :new.created_by  := jm_current_user;
+        :new.created_on  := SYSTIMESTAMP;
         :new.row_version := 1;
     ELSE
         :new.created_by  := :old.created_by;
@@ -272,8 +272,8 @@ BEFORE INSERT OR UPDATE ON jm_icd10_codes
 FOR EACH ROW
 BEGIN
     IF INSERTING THEN
-        :new.created_by  := NVL(:new.created_by, jm_current_user);
-        :new.created_on  := NVL(:new.created_on, SYSTIMESTAMP);
+        :new.created_by  := jm_current_user;
+        :new.created_on  := SYSTIMESTAMP;
         :new.row_version := 1;
     ELSE
         :new.created_by  := :old.created_by;
@@ -293,8 +293,8 @@ BEFORE INSERT OR UPDATE ON jm_visits
 FOR EACH ROW
 BEGIN
     IF INSERTING THEN
-        :new.created_by  := NVL(:new.created_by, jm_current_user);
-        :new.created_on  := NVL(:new.created_on, SYSTIMESTAMP);
+        :new.created_by  := jm_current_user;
+        :new.created_on  := SYSTIMESTAMP;
         :new.row_version := 1;
     ELSE
         :new.created_by  := :old.created_by;
@@ -314,8 +314,8 @@ BEFORE INSERT OR UPDATE ON jm_vitals
 FOR EACH ROW
 BEGIN
     IF INSERTING THEN
-        :new.created_by  := NVL(:new.created_by, jm_current_user);
-        :new.created_on  := NVL(:new.created_on, SYSTIMESTAMP);
+        :new.created_by  := jm_current_user;
+        :new.created_on  := SYSTIMESTAMP;
         :new.row_version := 1;
     ELSE
         :new.created_by  := :old.created_by;
@@ -335,8 +335,8 @@ BEFORE INSERT OR UPDATE ON jm_visit_diagnoses
 FOR EACH ROW
 BEGIN
     IF INSERTING THEN
-        :new.created_by  := NVL(:new.created_by, jm_current_user);
-        :new.created_on  := NVL(:new.created_on, SYSTIMESTAMP);
+        :new.created_by  := jm_current_user;
+        :new.created_on  := SYSTIMESTAMP;
         :new.row_version := 1;
     ELSE
         :new.created_by  := :old.created_by;
@@ -356,8 +356,8 @@ BEFORE INSERT OR UPDATE ON jm_visit_addenda
 FOR EACH ROW
 BEGIN
     IF INSERTING THEN
-        :new.created_by  := NVL(:new.created_by, jm_current_user);
-        :new.created_on  := NVL(:new.created_on, SYSTIMESTAMP);
+        :new.created_by  := jm_current_user;
+        :new.created_on  := SYSTIMESTAMP;
         :new.row_version := 1;
     ELSE
         :new.created_by  := :old.created_by;
@@ -377,8 +377,8 @@ BEFORE INSERT OR UPDATE ON jm_drugs
 FOR EACH ROW
 BEGIN
     IF INSERTING THEN
-        :new.created_by  := NVL(:new.created_by, jm_current_user);
-        :new.created_on  := NVL(:new.created_on, SYSTIMESTAMP);
+        :new.created_by  := jm_current_user;
+        :new.created_on  := SYSTIMESTAMP;
         :new.row_version := 1;
     ELSE
         :new.created_by  := :old.created_by;
@@ -398,8 +398,8 @@ BEFORE INSERT OR UPDATE ON jm_drug_batches
 FOR EACH ROW
 BEGIN
     IF INSERTING THEN
-        :new.created_by  := NVL(:new.created_by, jm_current_user);
-        :new.created_on  := NVL(:new.created_on, SYSTIMESTAMP);
+        :new.created_by  := jm_current_user;
+        :new.created_on  := SYSTIMESTAMP;
         :new.row_version := 1;
     ELSE
         :new.created_by  := :old.created_by;
@@ -419,8 +419,8 @@ BEFORE INSERT OR UPDATE ON jm_prescriptions
 FOR EACH ROW
 BEGIN
     IF INSERTING THEN
-        :new.created_by  := NVL(:new.created_by, jm_current_user);
-        :new.created_on  := NVL(:new.created_on, SYSTIMESTAMP);
+        :new.created_by  := jm_current_user;
+        :new.created_on  := SYSTIMESTAMP;
         :new.row_version := 1;
     ELSE
         :new.created_by  := :old.created_by;
@@ -440,8 +440,8 @@ BEFORE INSERT OR UPDATE ON jm_dispenses
 FOR EACH ROW
 BEGIN
     IF INSERTING THEN
-        :new.created_by  := NVL(:new.created_by, jm_current_user);
-        :new.created_on  := NVL(:new.created_on, SYSTIMESTAMP);
+        :new.created_by  := jm_current_user;
+        :new.created_on  := SYSTIMESTAMP;
         :new.row_version := 1;
     ELSE
         :new.created_by  := :old.created_by;
@@ -461,8 +461,8 @@ BEFORE INSERT OR UPDATE ON jm_lab_tests
 FOR EACH ROW
 BEGIN
     IF INSERTING THEN
-        :new.created_by  := NVL(:new.created_by, jm_current_user);
-        :new.created_on  := NVL(:new.created_on, SYSTIMESTAMP);
+        :new.created_by  := jm_current_user;
+        :new.created_on  := SYSTIMESTAMP;
         :new.row_version := 1;
     ELSE
         :new.created_by  := :old.created_by;
@@ -482,8 +482,8 @@ BEFORE INSERT OR UPDATE ON jm_lab_orders
 FOR EACH ROW
 BEGIN
     IF INSERTING THEN
-        :new.created_by  := NVL(:new.created_by, jm_current_user);
-        :new.created_on  := NVL(:new.created_on, SYSTIMESTAMP);
+        :new.created_by  := jm_current_user;
+        :new.created_on  := SYSTIMESTAMP;
         :new.row_version := 1;
     ELSE
         :new.created_by  := :old.created_by;
@@ -503,8 +503,8 @@ BEFORE INSERT OR UPDATE ON jm_lab_results
 FOR EACH ROW
 BEGIN
     IF INSERTING THEN
-        :new.created_by  := NVL(:new.created_by, jm_current_user);
-        :new.created_on  := NVL(:new.created_on, SYSTIMESTAMP);
+        :new.created_by  := jm_current_user;
+        :new.created_on  := SYSTIMESTAMP;
         :new.row_version := 1;
     ELSE
         :new.created_by  := :old.created_by;
@@ -524,8 +524,8 @@ BEFORE INSERT OR UPDATE ON jm_services
 FOR EACH ROW
 BEGIN
     IF INSERTING THEN
-        :new.created_by  := NVL(:new.created_by, jm_current_user);
-        :new.created_on  := NVL(:new.created_on, SYSTIMESTAMP);
+        :new.created_by  := jm_current_user;
+        :new.created_on  := SYSTIMESTAMP;
         :new.row_version := 1;
     ELSE
         :new.created_by  := :old.created_by;
@@ -545,8 +545,8 @@ BEFORE INSERT OR UPDATE ON jm_invoices
 FOR EACH ROW
 BEGIN
     IF INSERTING THEN
-        :new.created_by  := NVL(:new.created_by, jm_current_user);
-        :new.created_on  := NVL(:new.created_on, SYSTIMESTAMP);
+        :new.created_by  := jm_current_user;
+        :new.created_on  := SYSTIMESTAMP;
         :new.row_version := 1;
     ELSE
         :new.created_by  := :old.created_by;
@@ -566,8 +566,8 @@ BEFORE INSERT OR UPDATE ON jm_invoice_lines
 FOR EACH ROW
 BEGIN
     IF INSERTING THEN
-        :new.created_by  := NVL(:new.created_by, jm_current_user);
-        :new.created_on  := NVL(:new.created_on, SYSTIMESTAMP);
+        :new.created_by  := jm_current_user;
+        :new.created_on  := SYSTIMESTAMP;
         :new.row_version := 1;
     ELSE
         :new.created_by  := :old.created_by;
@@ -587,8 +587,8 @@ BEFORE INSERT OR UPDATE ON jm_payments
 FOR EACH ROW
 BEGIN
     IF INSERTING THEN
-        :new.created_by  := NVL(:new.created_by, jm_current_user);
-        :new.created_on  := NVL(:new.created_on, SYSTIMESTAMP);
+        :new.created_by  := jm_current_user;
+        :new.created_on  := SYSTIMESTAMP;
         :new.row_version := 1;
     ELSE
         :new.created_by  := :old.created_by;

@@ -50,7 +50,7 @@ SQL> lb update -changelog-file controller.xml
 1. Never edit a changeset that has run on a shared database. Fix forward with a new changeset.
 2. Each changeset has an id (`adetola:<file>-<n>`), a `--comment:` naming the SRS requirement, and a `--rollback`.
 3. PL/SQL changesets use `endDelimiter:/`, `runOnChange:true` and `stripComments:false` (without it Liquibase strips comments, including utPLSQL annotations).
-4. Synthetic test data lives in `test-data/`, uses `context:dev,test` and sets `CREATED_BY = 'JM_TEST_DATA'`. Never load real patient data outside production.
+4. Synthetic test data lives in `test-data/`, uses `context:dev,test` and is loaded as the system actor `JM_TEST_DATA` (`jm_ctx_api.set_system('JM_TEST_DATA')`), so the triggers stamp `CREATED_BY = 'JM_TEST_DATA'`. Never load real patient data outside production.
 5. Wallets and passwords never go in Git (see `.gitignore`).
 6. Production always runs `lb update -changelog-file controller.xml -contexts prod`; without a context Liquibase also runs the synthetic data. See [Test Data and Production Migration Register](../docs/qa/test-data-and-migration.md).
 
