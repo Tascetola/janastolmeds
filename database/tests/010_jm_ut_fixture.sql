@@ -18,7 +18,7 @@ END jm_ut_fixture;
 --rollback DROP PACKAGE jm_ut_fixture;
 
 --changeset adetola:test-010-fixture-body endDelimiter:/ runOnChange:true stripComments:false context:dev,test
---comment: Test fixture body (NFR-MNT-02). Test environments only.
+--comment: Test fixture body, including an HMO claim (NFR-MNT-02; DEF-009). Test environments only.
 CREATE OR REPLACE PACKAGE BODY jm_ut_fixture
 IS
     TYPE t_keys IS TABLE OF VARCHAR2(100) INDEX BY VARCHAR2(30);
@@ -205,10 +205,17 @@ IS
         put('JM_SERVICES', l_service);
 
         INSERT INTO jm_invoices (invoice_no, visit_id, patient_id, hmo_plan_id, total_amount, hmo_amount,
-                                 patient_amount, amount_paid, status)
-        VALUES ('UT-INV-1', l_visit, l_patient, l_hmo, 5000, 4000, 1000, 500, 'PART_PAID')
+                                 patient_amount, amount_paid, hmo_amount_paid, status)
+        VALUES ('UT-INV-1', l_visit, l_patient, l_hmo, 5000, 4000, 1000, 500, 2000, 'PART_PAID')
         RETURNING invoice_id INTO l_invoice;
         put('JM_INVOICES', l_invoice);
+
+        INSERT INTO jm_hmo_claims (claim_no, invoice_id, hmo_plan_id, claim_amount, approved_amount, paid_amount,
+                                   status, submitted_at, decided_at, paid_at, remittance_ref)
+        VALUES ('UT-CLM-1', l_invoice, l_hmo, 4000, 4000, 2000,
+                'PART_PAID', SYSTIMESTAMP - INTERVAL '3' DAY, SYSTIMESTAMP - INTERVAL '2' DAY, SYSTIMESTAMP, 'UT-REMIT-1')
+        RETURNING claim_id INTO l_id;
+        put('JM_HMO_CLAIMS', l_id);
 
         INSERT INTO jm_invoice_lines (invoice_id, source_type, source_id, description, qty, unit_price, hmo_covered)
         VALUES (l_invoice, 'SERVICE', l_service, 'UT Consultation', 1, 5000, 'Y')

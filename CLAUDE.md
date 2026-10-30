@@ -168,6 +168,7 @@ lb status | lb update | lb update-sql | lb rollback-count -count 1   (each with 
 - [x] GitHub repo public with README, docs, LICENSE, `.gitignore`
 - [x] Run changesets on ADB (28 Oct 2026, CIBSERP `cibserp_high`, schema `JMEDS`): 130 changesets, 29 tables, 33 triggers, 6 sequences, 1 job, all VALID; seed 8 roles, 7 departments, 74 lookups, 200 ICD-10. Deployed without errors.
 - [x] Database schema QA gate (28 Oct 2026): **passed**, 85 utPLSQL tests (84 pass, 1 disabled for DEF-005), 2 full rollback tests, schema = JM-DOC-03 v0.2. Open: DEF-005, DEF-008 (deferred), DEF-006, DEF-009 (decision). See docs/qa/database-2026-10-28.md
+- [x] DEF-006 / DEF-009 decisions implemented (29 Oct 2026): soft delete only (`RECORD_STATUS` + `<TABLE>_RECORD_GUARD` on 18 tables, physical DELETE refused), HMO settlement in `JM_HMO_CLAIMS`. Gate re-run **passed**: 106 tests (105 pass, 1 disabled), full 208-changeset rollback with identical snapshot, schema = JM-DOC-03 v0.3. Open: DEF-005, DEF-008 (API phase). See docs/qa/database-2026-10-29.md
 - [ ] UI wireframes (JM-DOC-05), 5–8 key screens
 - [ ] PL/SQL API layer: `JM_CTX_API`, then `JM_PATIENT_API`, other `JM_*_API`; grants to `JMEDS_API`; audit-chain verification job
 - [ ] API specification (JM-DOC-04, OpenAPI) and ORDS modules

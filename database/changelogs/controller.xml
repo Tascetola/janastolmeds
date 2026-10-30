@@ -23,6 +23,8 @@
     <include file="080_sequences_and_indexes.sql" relativeToChangelogFile="true"/>
     <include file="090_audit_triggers.sql"        relativeToChangelogFile="true"/>
     <include file="100_scheduler_jobs.sql"        relativeToChangelogFile="true"/>
+    <include file="110_hmo_settlement.sql"        relativeToChangelogFile="true"/>
+    <include file="120_soft_delete.sql"           relativeToChangelogFile="true"/>
 
     <!-- Reference data, all environments -->
     <include file="../seed-data/010_roles_departments.sql" relativeToChangelogFile="true"/>

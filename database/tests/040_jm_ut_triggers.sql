@@ -1,7 +1,7 @@
 --liquibase formatted sql
 
 --changeset adetola:test-040-triggers-spec endDelimiter:/ runOnChange:true stripComments:false context:dev,test
---comment: Trigger suite: audit columns and optimistic-lock version, visit lock guards, addenda, append-only audit log (FR-ADM-02, FR-CLN-04, NFR-PRV-03). Test environments only.
+--comment: Trigger suite: audit columns and optimistic-lock version, visit lock guards, addenda, soft delete, append-only audit log (FR-ADM-02, FR-CLN-04, NFR-PRV-03; DEF-006). Test environments only.
 CREATE OR REPLACE PACKAGE jm_ut_triggers AUTHID DEFINER
 IS
     --%suite(Database triggers (JM-DOC-03 sections 1 and 5))
@@ -13,7 +13,7 @@ IS
     --%test(Inserts record who and when, with ROW_VERSION 1)
     PROCEDURE insert_sets_audit_columns;
 
-    --%test(Updates record who and when, bump ROW_VERSION by one and protect CREATED_BY/CREATED_ON)
+    --%test(Updates record who and when, bump ROW_VERSION by one and protect CREATED_BY/CREATED_ON (every updatable table))
     PROCEDURE update_maintains_audit_columns;
 
     --%test(JM_CURRENT_USER falls back to the database session user outside APEX and the API context)
@@ -27,7 +27,7 @@ IS
     --%throws(-20010)
     PROCEDURE locked_visit_not_updatable;
 
-    --%test(A locked visit cannot be deleted)
+    --%test(A locked visit cannot be soft-deleted)
     --%throws(-20010)
     PROCEDURE locked_visit_not_deletable;
 
@@ -42,7 +42,7 @@ IS
     --%throws(-20011)
     PROCEDURE vitals_update_on_locked_visit;
 
-    --%test(Vitals of a locked visit cannot be deleted)
+    --%test(Vitals of a locked visit cannot be soft-deleted)
     --%throws(-20011)
     PROCEDURE vitals_delete_on_locked_visit;
 
@@ -58,7 +58,7 @@ IS
     --%throws(-20011)
     PROCEDURE diagnosis_update_on_locked_visit;
 
-    --%test(Diagnoses of a locked visit cannot be deleted)
+    --%test(Diagnoses of a locked visit cannot be soft-deleted)
     --%throws(-20011)
     PROCEDURE diagnosis_delete_on_locked_visit;
 
@@ -85,6 +85,39 @@ IS
     --%throws(-2291)
     PROCEDURE addendum_unknown_visit_reports_fk;
 
+    --%test(Addenda cannot be edited (DEF-006))
+    --%throws(-20013)
+    PROCEDURE addendum_not_updatable;
+
+    --%test(Addenda cannot be deleted (DEF-006))
+    --%throws(-20013)
+    PROCEDURE addendum_not_deletable;
+
+    --%endcontext
+
+    --%context(Records are never deleted; deletes are soft (DEF-006))
+
+    --%test(Physical DELETE is refused on every soft-delete table)
+    PROCEDURE delete_refused_every_table;
+
+    --%test(A soft delete on every table records who and when, and keeps the row)
+    PROCEDURE soft_delete_stamped_every_table;
+
+    --%test(Caller-supplied delete stamps are overruled by the trigger)
+    PROCEDURE soft_delete_stamp_not_spoofable;
+
+    --%test(A deleted record cannot be changed)
+    --%throws(-20031)
+    PROCEDURE deleted_record_frozen;
+
+    --%test(A deleted record cannot be restored)
+    --%throws(-20031)
+    PROCEDURE deleted_record_not_restorable;
+
+    --%test(An open visit cannot be physically deleted either)
+    --%throws(-20030)
+    PROCEDURE open_visit_not_physically_deletable;
+
     --%endcontext
 
     --%context(Audit log is append-only (NFR-PRV-03))
@@ -106,7 +139,7 @@ END jm_ut_triggers;
 --rollback DROP PACKAGE jm_ut_triggers;
 
 --changeset adetola:test-040-triggers-body endDelimiter:/ runOnChange:true stripComments:false context:dev,test
---comment: Trigger suite body (FR-ADM-02, FR-CLN-04, NFR-PRV-03). Test environments only.
+--comment: Trigger suite body (FR-ADM-02, FR-CLN-04, NFR-PRV-03; DEF-006). Test environments only.
 CREATE OR REPLACE PACKAGE BODY jm_ut_triggers
 IS
     g_failures VARCHAR2(32767);
@@ -172,7 +205,7 @@ IS
             END IF;
             l_tables := l_tables + 1;
         END LOOP;
-        ut.expect(l_tables, 'tables examined').to_equal(28);
+        ut.expect(l_tables, 'tables examined').to_equal(29);
         ut.expect(g_failures).to_be_null();
     END insert_sets_audit_columns;
 
@@ -190,8 +223,10 @@ IS
         l_tables  PLS_INTEGER := 0;
     BEGIN
         g_failures := NULL;
-        FOR t IN (SELECT table_name FROM user_tables
-                   WHERE table_name LIKE 'JM\_%' ESCAPE '\' AND table_name <> 'JM_AUDIT_LOG'
+        -- Insert-only tables (<TABLE>_NO_CHANGE trigger: addenda, audit log) are tested in their own contexts.
+        FOR t IN (SELECT table_name FROM user_tables u
+                   WHERE table_name LIKE 'JM\_%' ESCAPE '\'
+                     AND NOT EXISTS (SELECT 1 FROM user_triggers g WHERE g.trigger_name = u.table_name || '_NO_CHANGE')
                    ORDER BY table_name) LOOP
             l_where := ' FROM ' || DBMS_ASSERT.simple_sql_name(t.table_name) || ' WHERE ' ||
                        DBMS_ASSERT.simple_sql_name(pk_column(t.table_name)) || ' = :k';
@@ -228,10 +263,18 @@ IS
         UPDATE jm_visits SET plan_notes = 'changed after lock' WHERE visit_id = jm_ut_fixture.id('LOCKED_VISIT');
     END locked_visit_not_updatable;
 
+    PROCEDURE soft_delete (p_table IN VARCHAR2, p_column IN VARCHAR2, p_id IN NUMBER)
+    IS
+    BEGIN
+        EXECUTE IMMEDIATE 'UPDATE ' || DBMS_ASSERT.simple_sql_name(p_table) ||
+                          ' SET record_status = ''DELETED'', delete_reason = ''Entered in error (UT)''' ||
+                          ' WHERE ' || DBMS_ASSERT.simple_sql_name(p_column) || ' = :k'
+            USING p_id;
+    END soft_delete;
+
     PROCEDURE locked_visit_not_deletable IS
     BEGIN
-        DELETE FROM jm_visit_addenda WHERE visit_id = jm_ut_fixture.id('LOCKED_VISIT');
-        DELETE FROM jm_visits WHERE visit_id = jm_ut_fixture.id('LOCKED_VISIT');
+        soft_delete('JM_VISITS', 'VISIT_ID', jm_ut_fixture.id('LOCKED_VISIT'));
     END locked_visit_not_deletable;
 
     PROCEDURE unlocked_visit_editable
@@ -263,7 +306,7 @@ IS
     IS
         l_visit NUMBER := locked_visit_with_children;
     BEGIN
-        DELETE FROM jm_vitals WHERE visit_id = l_visit;
+        soft_delete('JM_VITALS', 'VISIT_ID', l_visit);
     END vitals_delete_on_locked_visit;
 
     PROCEDURE vitals_moved_off_locked_visit
@@ -290,7 +333,7 @@ IS
     IS
         l_visit NUMBER := locked_visit_with_children;
     BEGIN
-        DELETE FROM jm_visit_diagnoses WHERE visit_id = l_visit;
+        soft_delete('JM_VISIT_DIAGNOSES', 'VISIT_ID', l_visit);
     END diagnosis_delete_on_locked_visit;
 
     PROCEDURE diagnosis_moved_off_locked_visit
@@ -332,6 +375,103 @@ IS
         INSERT INTO jm_visit_addenda (visit_id, author_id, addendum_text)
         VALUES (-999, jm_ut_fixture.id('JM_STAFF'), 'No such visit');
     END addendum_unknown_visit_reports_fk;
+
+    PROCEDURE addendum_not_updatable IS
+    BEGIN
+        UPDATE jm_visit_addenda SET addendum_text = 'rewritten' WHERE addendum_id = jm_ut_fixture.id('JM_VISIT_ADDENDA');
+    END addendum_not_updatable;
+
+    PROCEDURE addendum_not_deletable IS
+    BEGIN
+        DELETE FROM jm_visit_addenda WHERE addendum_id = jm_ut_fixture.id('JM_VISIT_ADDENDA');
+    END addendum_not_deletable;
+
+    ---------------------------------------------------------------------------
+    PROCEDURE delete_refused_every_table
+    IS
+        l_tables PLS_INTEGER := 0;
+    BEGIN
+        g_failures := NULL;
+        FOR t IN (SELECT table_name FROM user_tab_columns
+                   WHERE table_name LIKE 'JM\_%' ESCAPE '\' AND column_name = 'RECORD_STATUS'
+                   ORDER BY table_name) LOOP
+            BEGIN
+                EXECUTE IMMEDIATE 'DELETE FROM ' || DBMS_ASSERT.simple_sql_name(t.table_name) ||
+                                  ' WHERE ' || DBMS_ASSERT.simple_sql_name(pk_column(t.table_name)) || ' = :k'
+                    USING jm_ut_fixture.key(t.table_name);
+                note(t.table_name || ': DELETE accepted');
+            EXCEPTION
+                WHEN OTHERS THEN
+                    IF SQLCODE <> -20030 THEN
+                        note(t.table_name || ': expected ORA-20030, got ' || SQLERRM);
+                    END IF;
+            END;
+            l_tables := l_tables + 1;
+        END LOOP;
+        ut.expect(l_tables, 'soft-delete tables examined').to_equal(18);
+        ut.expect(g_failures).to_be_null();
+    END delete_refused_every_table;
+
+    PROCEDURE soft_delete_stamped_every_table
+    IS
+        l_status  VARCHAR2(10);
+        l_on      TIMESTAMP WITH LOCAL TIME ZONE;
+        l_by      VARCHAR2(100);
+        l_reason  VARCHAR2(300);
+        l_tables  PLS_INTEGER := 0;
+    BEGIN
+        g_failures := NULL;
+        FOR t IN (SELECT table_name FROM user_tab_columns
+                   WHERE table_name LIKE 'JM\_%' ESCAPE '\' AND column_name = 'RECORD_STATUS'
+                   ORDER BY table_name) LOOP
+            soft_delete(t.table_name, pk_column(t.table_name), jm_ut_fixture.id(t.table_name));
+            EXECUTE IMMEDIATE 'SELECT record_status, deleted_on, deleted_by, delete_reason FROM ' ||
+                              DBMS_ASSERT.simple_sql_name(t.table_name) || ' WHERE ' ||
+                              DBMS_ASSERT.simple_sql_name(pk_column(t.table_name)) || ' = :k'
+                INTO l_status, l_on, l_by, l_reason USING jm_ut_fixture.id(t.table_name);
+            IF l_status <> 'DELETED' OR l_on IS NULL OR l_by IS NULL OR l_by <> jm_current_user
+               OR l_reason IS NULL THEN
+                note(t.table_name || ': status=' || l_status || ' deleted_on=' || l_on ||
+                     ' deleted_by=' || l_by || ' reason=' || l_reason);
+            END IF;
+            l_tables := l_tables + 1;
+        END LOOP;
+        ut.expect(l_tables, 'soft-delete tables examined').to_equal(18);
+        ut.expect(g_failures).to_be_null();
+    END soft_delete_stamped_every_table;
+
+    PROCEDURE soft_delete_stamp_not_spoofable
+    IS
+        l_on TIMESTAMP WITH LOCAL TIME ZONE;
+        l_by VARCHAR2(100);
+    BEGIN
+        UPDATE jm_payments
+           SET record_status = 'DELETED', delete_reason = 'Duplicate receipt (UT)',
+               deleted_by = 'SPOOFED', deleted_on = TIMESTAMP '2000-01-01 00:00:00'
+         WHERE payment_id = jm_ut_fixture.id('JM_PAYMENTS');
+        SELECT deleted_on, deleted_by INTO l_on, l_by FROM jm_payments WHERE payment_id = jm_ut_fixture.id('JM_PAYMENTS');
+        ut.expect(l_by).to_equal(jm_current_user);
+        ut.expect(l_on > SYSTIMESTAMP - INTERVAL '1' MINUTE, 'deleted_on is now').to_be_true();
+    END soft_delete_stamp_not_spoofable;
+
+    PROCEDURE deleted_record_frozen IS
+    BEGIN
+        soft_delete('JM_PRESCRIPTIONS', 'PRESCRIPTION_ID', jm_ut_fixture.id('JM_PRESCRIPTIONS'));
+        UPDATE jm_prescriptions SET dose = '2 tablets' WHERE prescription_id = jm_ut_fixture.id('JM_PRESCRIPTIONS');
+    END deleted_record_frozen;
+
+    PROCEDURE deleted_record_not_restorable IS
+    BEGIN
+        soft_delete('JM_PATIENTS', 'PATIENT_ID', jm_ut_fixture.id('JM_PATIENTS'));
+        UPDATE jm_patients
+           SET record_status = 'ACTIVE', deleted_on = NULL, deleted_by = NULL, delete_reason = NULL
+         WHERE patient_id = jm_ut_fixture.id('JM_PATIENTS');
+    END deleted_record_not_restorable;
+
+    PROCEDURE open_visit_not_physically_deletable IS
+    BEGIN
+        DELETE FROM jm_visits WHERE visit_id = jm_ut_fixture.id('JM_VISITS');
+    END open_visit_not_physically_deletable;
 
     ---------------------------------------------------------------------------
     PROCEDURE add_audit_row (p_id OUT NUMBER)

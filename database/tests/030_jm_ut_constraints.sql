@@ -75,6 +75,20 @@ IS
     PROCEDURE audit_log_client_ck;
     --%test(JM_AUDIT_LOG_DETAIL_JSON_CK: detail must be valid JSON (FR-ADM-02))
     PROCEDURE audit_log_detail_json_ck;
+    --%test(JM_INVOICES_HMO_PAID_CK: the HMO cannot pay more than its share (FR-BIL-03; DEF-009))
+    PROCEDURE invoices_hmo_paid_ck;
+    --%test(JM_HMO_CLAIMS_AMOUNTS_CK: claim is positive and approval cannot exceed it (FR-BIL-04; DEF-009))
+    PROCEDURE hmo_claims_amounts_ck;
+    --%test(JM_HMO_CLAIMS_PAID_CK: remittance cannot exceed the approved amount (FR-BIL-04; DEF-009))
+    PROCEDURE hmo_claims_paid_ck;
+    --%test(JM_HMO_CLAIMS_SUBMITTED_CK: a claim past DRAFT has a submission time (FR-BIL-04; DEF-009))
+    PROCEDURE hmo_claims_submitted_ck;
+    --%test(JM_HMO_CLAIMS_DECIDED_CK: an approved, paid or rejected claim has a decision time (FR-BIL-04; DEF-009))
+    PROCEDURE hmo_claims_decided_ck;
+    --%test(JM_HMO_CLAIMS_REJECTED_CK: a rejected claim needs a reason (FR-BIL-04; DEF-009))
+    PROCEDURE hmo_claims_rejected_ck;
+    --%test(<TABLE>_DELETED_CK on every soft-delete table: a delete needs a reason; an active row has no delete details (DEF-006))
+    PROCEDURE deleted_ck_every_table;
 
     --%endcontext
 
@@ -100,6 +114,10 @@ IS
     PROCEDURE invoices_no_uk;
     --%test(JM_INVOICES_VISIT_UK: one invoice per visit (FR-BIL-01))
     PROCEDURE invoices_visit_uk;
+    --%test(JM_HMO_CLAIMS_NO_UK: claim numbers are unique (FR-BIL-04))
+    PROCEDURE hmo_claims_no_uk;
+    --%test(JM_HMO_CLAIMS_INVOICE_UK: one live claim per invoice (FR-BIL-04; DEF-009))
+    PROCEDURE hmo_claims_invoice_uk;
 
     --%endcontext
 
@@ -115,6 +133,12 @@ IS
     PROCEDURE vitals_boundaries;
     --%test(Stock on hand can reach zero but not go below (FR-PHM-03))
     PROCEDURE stock_zero_not_negative;
+    --%test(HMO is not a patient payment method; HMO money goes to JM_HMO_CLAIMS (FR-BIL-02; DEF-009 regression))
+    PROCEDURE hmo_not_a_patient_payment_method;
+    --%test(A deleted diagnosis, lab result, invoice line, batch, account or visit frees its key for the corrected record (DEF-006))
+    PROCEDURE soft_delete_frees_business_keys;
+    --%test(A voided invoice can be replaced and a rejected claim resubmitted (FR-BIL-01, FR-BIL-04))
+    PROCEDURE void_invoice_and_rejected_claim_replaceable;
 
     --%endcontext
 END jm_ut_constraints;
@@ -122,13 +146,14 @@ END jm_ut_constraints;
 --rollback DROP PACKAGE jm_ut_constraints;
 
 --changeset adetola:test-030-constraints-body endDelimiter:/ runOnChange:true stripComments:false context:dev,test
---comment: Constraint suite body (FR-APT-02, FR-BIL-01, FR-BIL-02, FR-BIL-03, FR-CLN-01, FR-LAB-03, FR-PHM-02, FR-PHM-03). Test environments only.
+--comment: Constraint suite body (FR-APT-02, FR-BIL-01, FR-BIL-02, FR-BIL-03, FR-BIL-04, FR-CLN-01, FR-LAB-03, FR-PHM-02, FR-PHM-03; DEF-006, DEF-009). Test environments only.
 CREATE OR REPLACE PACKAGE BODY jm_ut_constraints
 IS
     c_check_violated  CONSTANT PLS_INTEGER := -2290;
     c_parent_missing  CONSTANT PLS_INTEGER := -2291;
     c_unique_violated CONSTANT PLS_INTEGER := -1;
     c_null_update     CONSTANT PLS_INTEGER := -1407;
+    c_null_insert     CONSTANT PLS_INTEGER := -1400;
 
     g_failures VARCHAR2(32767);
 
@@ -184,14 +209,65 @@ IS
             END IF;
     END try_update;
 
+    -- Tables with a <TABLE>_NO_CHANGE trigger accept inserts only, so their constraints are probed by inserting
+    -- a copy of the fixture row with one column replaced (bound to p_text or p_num, or NULL when neither is given).
+    FUNCTION insert_only (p_table IN VARCHAR2) RETURN BOOLEAN
+    IS
+        l_count PLS_INTEGER;
+    BEGIN
+        SELECT COUNT(*) INTO l_count FROM user_triggers WHERE trigger_name = p_table || '_NO_CHANGE';
+        RETURN l_count > 0;
+    END insert_only;
+
+    PROCEDURE try_insert_copy (p_table      IN VARCHAR2,
+                               p_column     IN VARCHAR2,
+                               p_sqlcode    IN PLS_INTEGER,
+                               p_expect     IN VARCHAR2,
+                               p_label      IN VARCHAR2,
+                               p_text       IN VARCHAR2 := NULL,
+                               p_num        IN NUMBER := NULL)
+    IS
+        l_columns VARCHAR2(4000);
+        l_values  VARCHAR2(4000);
+        l_sql     VARCHAR2(9000);
+    BEGIN
+        SELECT LISTAGG(column_name, ', ') WITHIN GROUP (ORDER BY column_id),
+               LISTAGG(CASE WHEN column_name = p_column
+                            THEN CASE WHEN COALESCE(p_text, TO_CHAR(p_num)) IS NULL THEN 'NULL' ELSE ':v' END
+                            ELSE column_name END, ', ') WITHIN GROUP (ORDER BY column_id)
+          INTO l_columns, l_values
+          FROM user_tab_cols
+         WHERE table_name = p_table
+           AND identity_column = 'NO' AND virtual_column = 'NO' AND hidden_column = 'NO';
+        l_sql := 'INSERT INTO ' || DBMS_ASSERT.simple_sql_name(p_table) || ' (' || l_columns || ') SELECT ' || l_values ||
+                 ' FROM ' || DBMS_ASSERT.simple_sql_name(p_table) ||
+                 ' WHERE ' || DBMS_ASSERT.simple_sql_name(pk_column(p_table)) || ' = :k';
+        IF p_num IS NOT NULL THEN
+            EXECUTE IMMEDIATE l_sql USING p_num, jm_ut_fixture.key(p_table);
+        ELSIF p_text IS NOT NULL THEN
+            EXECUTE IMMEDIATE l_sql USING p_text, jm_ut_fixture.key(p_table);
+        ELSE
+            EXECUTE IMMEDIATE l_sql USING jm_ut_fixture.key(p_table);
+        END IF;
+        note(p_label || ': accepted ' || COALESCE(p_text, TO_CHAR(p_num), 'NULL'));
+    EXCEPTION
+        WHEN OTHERS THEN
+            IF SQLCODE <> p_sqlcode OR INSTR(SQLERRM, p_expect) = 0 THEN
+                note(p_label || ': expected ' || p_sqlcode || ' ' || p_expect || ', got ' || SQLERRM);
+            END IF;
+    END try_insert_copy;
+
     FUNCTION has_named_test (p_constraint IN VARCHAR2) RETURN BOOLEAN
     IS
         l_count PLS_INTEGER;
     BEGIN
+        -- The <TABLE>_DELETED_CK on every soft-delete table is covered by one test, deleted_ck_every_table.
         SELECT COUNT(*) INTO l_count
           FROM user_procedures
          WHERE object_name = 'JM_UT_CONSTRAINTS'
-           AND procedure_name = SUBSTR(p_constraint, 4);
+           AND procedure_name = CASE WHEN p_constraint LIKE 'JM\_%\_DELETED\_CK' ESCAPE '\'
+                                     THEN 'DELETED_CK_EVERY_TABLE'
+                                     ELSE SUBSTR(p_constraint, 4) END;
         RETURN l_count > 0;
     END has_named_test;
 
@@ -288,6 +364,12 @@ IS
                    ORDER BY c.table_name, c.constraint_name) LOOP
             IF NOT jm_ut_fixture.has_row(f.table_name) THEN
                 note(f.constraint_name || ': no fixture row to test with');
+            ELSIF insert_only(f.table_name) THEN
+                IF f.data_type = 'NUMBER' THEN
+                    try_insert_copy(f.table_name, f.column_name, c_parent_missing, f.constraint_name, f.constraint_name, p_num => -999);
+                ELSE
+                    try_insert_copy(f.table_name, f.column_name, c_parent_missing, f.constraint_name, f.constraint_name, p_text => 'UT-NONE');
+                END IF;
             ELSIF f.data_type = 'NUMBER' THEN
                 try_update(f.table_name, DBMS_ASSERT.simple_sql_name(f.column_name) || ' = :v',
                            c_parent_missing, f.constraint_name, f.constraint_name, p_num => -999);
@@ -306,7 +388,7 @@ IS
         l_tested PLS_INTEGER := 0;
     BEGIN
         g_failures := NULL;
-        FOR n IN (SELECT c.table_name, c.column_name
+        FOR n IN (SELECT c.table_name, c.column_name, c.identity_column
                     FROM user_tab_cols c
                    WHERE c.table_name LIKE 'JM\_%' ESCAPE '\'
                      AND c.table_name <> 'JM_AUDIT_LOG'
@@ -316,8 +398,15 @@ IS
                      AND c.column_name NOT IN ('CREATED_BY', 'CREATED_ON', 'UPDATED_BY', 'UPDATED_ON', 'ROW_VERSION')
                    ORDER BY c.table_name, c.column_id) LOOP
             -- The audit columns are maintained by the BIU triggers and are covered by the trigger suite.
-            try_update(n.table_name, DBMS_ASSERT.simple_sql_name(n.column_name) || ' = NULL',
-                       c_null_update, '"' || n.column_name || '"', n.table_name || '.' || n.column_name);
+            IF insert_only(n.table_name) AND n.identity_column = 'YES' THEN
+                NULL;  -- GENERATED BY DEFAULT ON NULL: an inserted NULL is replaced by the next key
+            ELSIF insert_only(n.table_name) THEN
+                try_insert_copy(n.table_name, n.column_name, c_null_insert, '"' || n.column_name || '"',
+                                n.table_name || '.' || n.column_name);
+            ELSE
+                try_update(n.table_name, DBMS_ASSERT.simple_sql_name(n.column_name) || ' = NULL',
+                           c_null_update, '"' || n.column_name || '"', n.table_name || '.' || n.column_name);
+            END IF;
             l_tested := l_tested + 1;
         END LOOP;
         ut.expect(l_tested, 'NOT NULL columns examined').to_be_greater_than(0);
@@ -541,6 +630,67 @@ IS
     EXCEPTION WHEN OTHERS THEN expect_error(SQLCODE, SQLERRM, c_check_violated, 'JM_AUDIT_LOG_DETAIL_JSON_CK');
     END audit_log_detail_json_ck;
 
+    PROCEDURE invoices_hmo_paid_ck IS
+    BEGIN
+        UPDATE jm_invoices SET hmo_amount_paid = hmo_amount + 0.01 WHERE invoice_id = jm_ut_fixture.id('JM_INVOICES');
+        not_raised('JM_INVOICES_HMO_PAID_CK');
+    EXCEPTION WHEN OTHERS THEN expect_error(SQLCODE, SQLERRM, c_check_violated, 'JM_INVOICES_HMO_PAID_CK');
+    END invoices_hmo_paid_ck;
+
+    PROCEDURE hmo_claims_amounts_ck IS
+    BEGIN
+        UPDATE jm_hmo_claims SET approved_amount = claim_amount + 1 WHERE claim_id = jm_ut_fixture.id('JM_HMO_CLAIMS');
+        not_raised('JM_HMO_CLAIMS_AMOUNTS_CK');
+    EXCEPTION WHEN OTHERS THEN expect_error(SQLCODE, SQLERRM, c_check_violated, 'JM_HMO_CLAIMS_AMOUNTS_CK');
+    END hmo_claims_amounts_ck;
+
+    PROCEDURE hmo_claims_paid_ck IS
+    BEGIN
+        UPDATE jm_hmo_claims SET paid_amount = approved_amount + 0.01 WHERE claim_id = jm_ut_fixture.id('JM_HMO_CLAIMS');
+        not_raised('JM_HMO_CLAIMS_PAID_CK');
+    EXCEPTION WHEN OTHERS THEN expect_error(SQLCODE, SQLERRM, c_check_violated, 'JM_HMO_CLAIMS_PAID_CK');
+    END hmo_claims_paid_ck;
+
+    PROCEDURE hmo_claims_submitted_ck IS
+    BEGIN
+        UPDATE jm_hmo_claims SET submitted_at = NULL WHERE claim_id = jm_ut_fixture.id('JM_HMO_CLAIMS');
+        not_raised('JM_HMO_CLAIMS_SUBMITTED_CK');
+    EXCEPTION WHEN OTHERS THEN expect_error(SQLCODE, SQLERRM, c_check_violated, 'JM_HMO_CLAIMS_SUBMITTED_CK');
+    END hmo_claims_submitted_ck;
+
+    PROCEDURE hmo_claims_decided_ck IS
+    BEGIN
+        UPDATE jm_hmo_claims SET decided_at = NULL WHERE claim_id = jm_ut_fixture.id('JM_HMO_CLAIMS');
+        not_raised('JM_HMO_CLAIMS_DECIDED_CK');
+    EXCEPTION WHEN OTHERS THEN expect_error(SQLCODE, SQLERRM, c_check_violated, 'JM_HMO_CLAIMS_DECIDED_CK');
+    END hmo_claims_decided_ck;
+
+    PROCEDURE hmo_claims_rejected_ck IS
+    BEGIN
+        UPDATE jm_hmo_claims SET status = 'REJECTED', rejection_reason = NULL WHERE claim_id = jm_ut_fixture.id('JM_HMO_CLAIMS');
+        not_raised('JM_HMO_CLAIMS_REJECTED_CK');
+    EXCEPTION WHEN OTHERS THEN expect_error(SQLCODE, SQLERRM, c_check_violated, 'JM_HMO_CLAIMS_REJECTED_CK');
+    END hmo_claims_rejected_ck;
+
+    PROCEDURE deleted_ck_every_table
+    IS
+        l_tested PLS_INTEGER := 0;
+    BEGIN
+        g_failures := NULL;
+        FOR t IN (SELECT table_name FROM user_tab_columns
+                   WHERE table_name LIKE 'JM\_%' ESCAPE '\' AND column_name = 'RECORD_STATUS'
+                   ORDER BY table_name) LOOP
+            -- the record guard stamps who and when, so only the missing reason can fail
+            try_update(t.table_name, 'record_status = :v', c_check_violated, t.table_name || '_DELETED_CK',
+                       t.table_name || ' deleted without a reason', p_text => 'DELETED');
+            try_update(t.table_name, 'delete_reason = :v', c_check_violated, t.table_name || '_DELETED_CK',
+                       t.table_name || ' active row with a delete reason', p_text => 'UT reason');
+            l_tested := l_tested + 1;
+        END LOOP;
+        ut.expect(l_tested, 'soft-delete tables examined').to_equal(18);
+        ut.expect(g_failures).to_be_null();
+    END deleted_ck_every_table;
+
     ---------------------------------------------------------------------------
     -- unique keys on multi-key tables
     ---------------------------------------------------------------------------
@@ -629,6 +779,25 @@ IS
         not_raised('JM_INVOICES_VISIT_UK');
     EXCEPTION WHEN OTHERS THEN expect_error(SQLCODE, SQLERRM, c_unique_violated, 'JM_INVOICES_VISIT_UK');
     END invoices_visit_uk;
+
+    PROCEDURE hmo_claims_no_uk IS
+    BEGIN
+        -- a rejected claim is outside JM_HMO_CLAIMS_INVOICE_UK, so only the claim number can clash
+        INSERT INTO jm_hmo_claims (claim_no, invoice_id, hmo_plan_id, claim_amount, status,
+                                   submitted_at, decided_at, rejection_reason)
+        VALUES ('UT-CLM-1', jm_ut_fixture.id('JM_INVOICES'), jm_ut_fixture.id('JM_HMO_PLANS'), 100, 'REJECTED',
+                SYSTIMESTAMP, SYSTIMESTAMP, 'Duplicate number test');
+        not_raised('JM_HMO_CLAIMS_NO_UK');
+    EXCEPTION WHEN OTHERS THEN expect_error(SQLCODE, SQLERRM, c_unique_violated, 'JM_HMO_CLAIMS_NO_UK');
+    END hmo_claims_no_uk;
+
+    PROCEDURE hmo_claims_invoice_uk IS
+    BEGIN
+        INSERT INTO jm_hmo_claims (claim_no, invoice_id, hmo_plan_id, claim_amount)
+        VALUES ('UT-CLM-2', jm_ut_fixture.id('JM_INVOICES'), jm_ut_fixture.id('JM_HMO_PLANS'), 100);
+        not_raised('JM_HMO_CLAIMS_INVOICE_UK');
+    EXCEPTION WHEN OTHERS THEN expect_error(SQLCODE, SQLERRM, c_unique_violated, 'JM_HMO_CLAIMS_INVOICE_UK');
+    END hmo_claims_invoice_uk;
 
     ---------------------------------------------------------------------------
     -- business rules: accepted cases and boundaries
@@ -727,6 +896,86 @@ IS
         EXCEPTION WHEN OTHERS THEN expect_error(SQLCODE, SQLERRM, c_check_violated, 'JM_DRUG_BATCHES_ON_HAND_CK');
         END;
     END stock_zero_not_negative;
+
+    PROCEDURE hmo_not_a_patient_payment_method IS
+    BEGIN
+        INSERT INTO jm_payments (receipt_no, invoice_id, amount, pay_method, received_by)
+        VALUES ('UT-RCP-HMO', jm_ut_fixture.id('JM_INVOICES'), 100, 'HMO', jm_ut_fixture.id('JM_STAFF'));
+        not_raised('JM_PAYMENTS_METHOD_CK');
+    EXCEPTION WHEN OTHERS THEN expect_error(SQLCODE, SQLERRM, c_check_violated, 'JM_PAYMENTS_METHOD_CK');
+    END hmo_not_a_patient_payment_method;
+
+    PROCEDURE soft_delete (p_table IN VARCHAR2)
+    IS
+    BEGIN
+        EXECUTE IMMEDIATE 'UPDATE ' || DBMS_ASSERT.simple_sql_name(p_table) ||
+                          ' SET record_status = ''DELETED'', delete_reason = ''Entered in error (UT)''' ||
+                          ' WHERE ' || DBMS_ASSERT.simple_sql_name(pk_column(p_table)) || ' = :k'
+            USING jm_ut_fixture.key(p_table);
+    END soft_delete;
+
+    PROCEDURE soft_delete_frees_business_keys
+    IS
+        l_count PLS_INTEGER;
+    BEGIN
+        soft_delete('JM_VISIT_DIAGNOSES');
+        INSERT INTO jm_visit_diagnoses (visit_id, icd10_code)
+        VALUES (jm_ut_fixture.id('JM_VISITS'), jm_ut_fixture.key('JM_ICD10_CODES'));
+
+        soft_delete('JM_LAB_RESULTS');
+        INSERT INTO jm_lab_results (lab_order_id, result_numeric, entered_by)
+        VALUES (jm_ut_fixture.id('JM_LAB_ORDERS'), 14.1, jm_ut_fixture.id('STAFF2'));
+
+        soft_delete('JM_INVOICE_LINES');
+        INSERT INTO jm_invoice_lines (invoice_id, source_type, source_id, description, qty, unit_price)
+        VALUES (jm_ut_fixture.id('JM_INVOICES'), 'SERVICE', jm_ut_fixture.id('JM_SERVICES'), 'Corrected line', 1, 5000);
+
+        soft_delete('JM_DRUG_BATCHES');
+        INSERT INTO jm_drug_batches (drug_id, batch_no, expiry_date, qty_received, qty_on_hand)
+        VALUES (jm_ut_fixture.id('JM_DRUGS'), 'UT-BATCH1', ADD_MONTHS(TRUNC(SYSDATE), 18), 100, 100);
+
+        soft_delete('JM_PATIENT_ACCOUNTS');
+        INSERT INTO jm_patient_accounts (patient_id, login_id, password_hash, password_salt)
+        VALUES (jm_ut_fixture.id('JM_PATIENTS'), 'ut.patient@example.test', 'h', 's');
+
+        soft_delete('JM_VISITS');
+        INSERT INTO jm_visits (visit_no, patient_id, appointment_id, doctor_id)
+        VALUES ('UT-VIS-5', jm_ut_fixture.id('JM_PATIENTS'), jm_ut_fixture.id('JM_APPOINTMENTS'), jm_ut_fixture.id('JM_STAFF'));
+
+        soft_delete('JM_APPOINTMENTS');
+        INSERT INTO jm_appointments (appointment_no, patient_id, staff_id, schedule_id, slot_start, slot_end)
+        SELECT 'UT-APT-5', patient_id, staff_id, schedule_id, slot_start, slot_end
+          FROM jm_appointments WHERE appointment_id = jm_ut_fixture.id('JM_APPOINTMENTS');
+
+        -- each corrected record sits beside the deleted original, which stays in the table
+        SELECT COUNT(*) INTO l_count FROM jm_visit_diagnoses
+         WHERE visit_id = jm_ut_fixture.id('JM_VISITS') AND icd10_code = jm_ut_fixture.key('JM_ICD10_CODES');
+        ut.expect(l_count, 'diagnosis rows').to_equal(2);
+        SELECT COUNT(*) INTO l_count FROM jm_lab_results WHERE lab_order_id = jm_ut_fixture.id('JM_LAB_ORDERS');
+        ut.expect(l_count, 'lab result rows').to_equal(2);
+        SELECT COUNT(*) INTO l_count FROM jm_visits
+         WHERE appointment_id = jm_ut_fixture.id('JM_APPOINTMENTS') AND record_status = 'ACTIVE';
+        ut.expect(l_count, 'active visits for the appointment').to_equal(1);
+    END soft_delete_frees_business_keys;
+
+    PROCEDURE void_invoice_and_rejected_claim_replaceable
+    IS
+        l_count PLS_INTEGER;
+    BEGIN
+        UPDATE jm_hmo_claims SET status = 'REJECTED', rejection_reason = 'Member not covered on visit date'
+         WHERE claim_id = jm_ut_fixture.id('JM_HMO_CLAIMS');
+        INSERT INTO jm_hmo_claims (claim_no, invoice_id, hmo_plan_id, claim_amount)
+        VALUES ('UT-CLM-2', jm_ut_fixture.id('JM_INVOICES'), jm_ut_fixture.id('JM_HMO_PLANS'), 4000);
+
+        UPDATE jm_invoices SET status = 'VOID' WHERE invoice_id = jm_ut_fixture.id('JM_INVOICES');
+        INSERT INTO jm_invoices (invoice_no, visit_id, patient_id)
+        VALUES ('UT-INV-2', jm_ut_fixture.id('JM_VISITS'), jm_ut_fixture.id('JM_PATIENTS'));
+
+        SELECT COUNT(*) INTO l_count FROM jm_invoices WHERE visit_id = jm_ut_fixture.id('JM_VISITS');
+        ut.expect(l_count, 'invoices for the visit').to_equal(2);
+        SELECT COUNT(*) INTO l_count FROM jm_hmo_claims WHERE invoice_id = jm_ut_fixture.id('JM_INVOICES');
+        ut.expect(l_count, 'claims for the invoice').to_equal(2);
+    END void_invoice_and_rejected_claim_replaceable;
 END jm_ut_constraints;
 /
 --rollback DROP PACKAGE BODY jm_ut_constraints;
