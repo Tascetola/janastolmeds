@@ -7,6 +7,7 @@
 #   Pull request and push to main:
 #     static checks -> Liquibase validate -> deploy (lb update) -> rollback test of the changesets just applied
 #     -> idempotency (nothing left pending) -> schema matches JM-DOC-03 -> no invalid objects -> utPLSQL suite
+#     -> line coverage of every JM_*_API package (API-layer gate: at least 80%)
 #
 # Secrets (Settings > Secrets and variables > Actions):
 #   ADB_WALLET_BASE64  base64 of the Autonomous Database wallet zip (without credentials.sso)
@@ -165,6 +166,36 @@ jobs:
             echo "::error::utPLSQL tests failed"
             exit 1
           fi
+
+      - name: API line coverage (at least 80% per JM_*_API package)
+        run: |
+          bash .github/scripts/run-sql.sh "$LOGS/coverage.log" <<SQL
+          set heading off feedback off pagesize 0 linesize 32767 long 100000000 longchunksize 32767 trimspool on
+          select 'API_PACKAGES=' || count(*) from user_objects
+           where object_type = 'PACKAGE BODY' and object_name like 'JM\_%\_API' escape '\'
+             and object_name not like 'JM\_UT\_%' escape '\';
+          spool $LOGS/coverage.xml
+          select * from table(ut.run(
+              a_paths           => ut_varchar2_list('jmeds'),
+              a_reporter        => ut_coverage_cobertura_reporter(),
+              a_include_objects => (select cast(collect('JMEDS.' || object_name) as ut_varchar2_list)
+                                      from user_objects
+                                     where object_type = 'PACKAGE BODY'
+                                       and object_name like 'JM\_%\_API' escape '\'
+                                       and object_name not like 'JM\_UT\_%' escape '\')));
+          spool off
+          SQL
+          packages=$(grep -oE 'API_PACKAGES=[0-9]+' "$LOGS/coverage.log" | grep -oE '[0-9]+')
+          grep -oE '<class name="[^"]+"[^>]* line-rate="[0-9.]+"' "$LOGS/coverage.xml" \
+            | sed -E 's/<class name="([^"]+)".* line-rate="([0-9.]+)"/\1 \2/' > "$LOGS/coverage.txt" || true
+          cat "$LOGS/coverage.txt"
+          reported=$(wc -l < "$LOGS/coverage.txt")
+          if [ "$reported" -ne "$packages" ]; then
+            echo "::error::Coverage reported for $reported of $packages JM_*_API packages"
+            exit 1
+          fi
+          awk '{ pct = $2 * 100; printf "%s %.1f%%\n", $1, pct; if (pct < 80) { printf "::error::%s line coverage %.1f%% is below 80%%\n", $1, pct; bad = 1 } }
+               END { exit bad }' "$LOGS/coverage.txt"
 
       - name: Keep logs and test results
         if: always()

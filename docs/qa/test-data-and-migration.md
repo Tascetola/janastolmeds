@@ -11,7 +11,7 @@ This register records where test and demo data lives in the `JMEDS` schema, how 
 | D1 | Tests and demo data run in the same `JMEDS` schema on CIBSERP (`cibserp_high`); this environment is the **demo** environment (decided 28 Oct 2026). | Every transactional row in the demo database is non-production by definition. |
 | D2 | **Production is a fresh build, never a copy of demo.** It is created with the same Liquibase changelog plus real hospital data loaded at go-live. | No export/import from demo to production, so no test row can leak across. Only *definitions* (reference data, and reviewed catalogues) move. |
 | D3 | Only synthetic data in demo (NFR-PRV-05, NDPA 2023). Names, phones, addresses and HMO member numbers are invented; no real patient may ever be entered here. | The demo database never becomes subject to patient-data obligations. |
-| D4 | Synthetic data loaded by Liquibase carries `CREATED_BY = 'JM_TEST_DATA'` and `context:dev,test`. | It can be counted, purged within demo, and proved absent in production. |
+| D4 | Synthetic data loaded by Liquibase carries `CREATED_BY = 'JM_TEST_DATA'` and `context:dev,test`. The load runs as the system actor (`jm_ctx_api.set_system('JM_TEST_DATA')`); the audit triggers set `CREATED_BY` from it and ignore any value written directly (DEF-008). | It can be counted, purged within demo, and proved absent in production. |
 
 ## 2. Where test data comes from
 

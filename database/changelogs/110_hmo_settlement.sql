@@ -76,8 +76,8 @@ BEFORE INSERT OR UPDATE ON jm_hmo_claims
 FOR EACH ROW
 BEGIN
     IF INSERTING THEN
-        :new.created_by  := NVL(:new.created_by, jm_current_user);
-        :new.created_on  := NVL(:new.created_on, SYSTIMESTAMP);
+        :new.created_by  := jm_current_user;
+        :new.created_on  := SYSTIMESTAMP;
         :new.row_version := 1;
     ELSE
         :new.created_by  := :old.created_by;

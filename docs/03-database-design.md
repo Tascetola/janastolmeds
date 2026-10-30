@@ -35,13 +35,13 @@ The JanastolMeds Release 1.0 schema has 30 tables in 7 modules, all in one schem
 
 | Column      | Type                           | Rule                                                                   |
 |-------------|--------------------------------|------------------------------------------------------------------------|
-| CREATED_BY  | VARCHAR2(100 CHAR)             | APEX user, ORDS client or USER                                         |
-| CREATED_ON  | TIMESTAMP WITH LOCAL TIME ZONE | Default SYSTIMESTAMP                                                   |
+| CREATED_BY  | VARCHAR2(100 CHAR)             | JM_CURRENT_USER on insert; a caller's value is overruled               |
+| CREATED_ON  | TIMESTAMP WITH LOCAL TIME ZONE | SYSTIMESTAMP on insert; a caller's value is overruled                  |
 | UPDATED_BY  | VARCHAR2(100 CHAR)             | Set on every update                                                    |
 | UPDATED_ON  | TIMESTAMP WITH LOCAL TIME ZONE | Set on every update                                                    |
 | ROW_VERSION | NUMBER                         | Incremented on update, used for optimistic locking by APEX and the API |
 
-These five columns are not repeated in the data dictionary below.
+These five columns are not repeated in the data dictionary below. JM_CURRENT_USER returns the JM_CTX actor (section 6), else the APEX user, else the database user. Synthetic data is marked by loading it as the system actor JM_TEST_DATA (`jm_ctx_api.set_system('JM_TEST_DATA')`), never by writing CREATED_BY directly.
 
 **Standard soft-delete columns** (decided 29 Oct 2026, DEF-006) on the 18 patient, clinical and financial tables: JM_PATIENTS, JM_PATIENT_CONSENTS, JM_PATIENT_ALLERGIES, JM_PATIENT_ACCOUNTS, JM_DOCTOR_SCHEDULES, JM_APPOINTMENTS, JM_VISITS, JM_VITALS, JM_VISIT_DIAGNOSES, JM_DRUG_BATCHES, JM_PRESCRIPTIONS, JM_DISPENSES, JM_LAB_ORDERS, JM_LAB_RESULTS, JM_INVOICES, JM_INVOICE_LINES, JM_PAYMENTS, JM_HMO_CLAIMS.
 
@@ -608,6 +608,19 @@ This makes NFR-MNT-01 physical rather than a coding rule: APEX pages and ORDS ha
 **Row-level access** (NFR-SEC-02)
 
 - A context JM_CTX is set at the start of every call with the actor type, staff ID or patient ID, and role list (APEX: post-authentication and initialisation code; ORDS: the handler reads the OAuth2 token's client and maps it to the patient account).
+
+  JM_CTX is written only by JM_CTX_API:
+
+  | Procedure | Actor (JM_CURRENT_USER) | Accepted when | Refused with |
+  |---|---|---|---|
+  | `set_staff(username, client, ip)` | Staff username | Staff active, holds at least one role; in APEX, username = APEX APP_USER | ORA-20100 (unknown, inactive, no roles), ORA-20101 (not the APEX user) |
+  | `set_patient(account_id, client, ip)` | `PATIENT:<account_id>`, never the login ID (personal data) | Account unlocked and not deleted; patient not deleted, status PENDING or ACTIVE | ORA-20100 |
+  | `set_system(job_name)` | Job name, e.g. JM_TEST_DATA | Session logged in as JMEDS (jobs, Liquibase loads), so the APEX/ORDS connection cannot claim it | ORA-20101, ORA-20102 (bad name) |
+  | `clear` | — | Always; APEX cleanup code and the end of each ORDS handler | — |
+
+  Attributes: ACTOR, ACTOR_TYPE (STAFF/PATIENT/SYSTEM), STAFF_ID, PATIENT_ID, ACCOUNT_ID, PATIENT_STATUS, ROLES (`:DOCTOR:NURSE:`), CLIENT (APEX/ORDS/JOB), IP_ADDRESS. Sessions are pooled, so every `set_*` clears the context first and a failed sign-in leaves no identity.
+
+  Each API procedure checks access with `require_role('DOCTOR,NURSE')` (any of; system jobs pass, patients never do) and, for patient data, `require_patient_access(patient_id)` (a patient actor reaches only their own record). Both raise ORA-20100 when nobody is signed in and ORA-20101 when the actor is not allowed.
 
 - Every patient-facing API procedure filters on SYS_CONTEXT('JM_CTX','PATIENT_ID'), so a patient token can only return that patient's rows.
 
